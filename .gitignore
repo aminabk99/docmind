@@ -1,0 +1,25 @@
+# Environment
+.env
+
+# Vector store — grows large and contains binary segment files
+chroma_db/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Uploaded PDFs (never commit user data)
+*.pdf
+
+# OS
+.DS_Store
+Thumbs.db
