@@ -18,6 +18,7 @@ app.add_middleware(
 class QueryRequest(BaseModel):
     question: str
     top_k: int = 5
+    doc_ids: list[str] | None = None  # scoped to this chat's documents when provided
 
 
 # ---------------------------------------------------------------------------
@@ -28,11 +29,8 @@ class QueryRequest(BaseModel):
 async def upload_document(file: UploadFile = File(...)):
     if not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
-
-    # file.size may be None when Content-Length is absent.
     if file.size and file.size > 50 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="File exceeds 50 MB limit.")
-
     try:
         contents = await file.read()
         result = ingest_pdf(contents, file.filename)
@@ -51,9 +49,8 @@ async def query_documents(request: QueryRequest):
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
     if not (1 <= request.top_k <= 20):
         raise HTTPException(status_code=400, detail="top_k must be between 1 and 20.")
-
     try:
-        return answer_question(request.question, request.top_k)
+        return answer_question(request.question, request.top_k, request.doc_ids)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Query failed: {exc}") from exc
 
@@ -66,7 +63,6 @@ async def query_documents(request: QueryRequest):
 async def list_documents():
     try:
         collection = get_chroma_collection()
-        # Pass a high limit — ChromaDB defaults to 100 without it.
         results = collection.get(include=["metadatas"], limit=10_000)
         if not results["metadatas"]:
             return []
@@ -100,7 +96,6 @@ async def delete_document(doc_id: str):
         ids_to_delete = results["ids"]
         if not ids_to_delete:
             raise HTTPException(status_code=404, detail="Document not found.")
-
         collection.delete(ids=ids_to_delete)
         return {"deleted_chunks": len(ids_to_delete)}
     except HTTPException:

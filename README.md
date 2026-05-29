@@ -1,6 +1,6 @@
 # DocMind
 
-A RAG-powered document intelligence web app. Upload PDFs, ask natural-language questions, and get cited answers with confidence scores — all backed by OpenAI embeddings, ChromaDB, and GPT-4o-mini.
+A RAG-powered document intelligence web app that runs **fully locally** — no API keys, no cloud, no cost. Upload PDFs, ask natural-language questions, and get cited answers with confidence scores.
 
 ---
 
@@ -10,7 +10,7 @@ A RAG-powered document intelligence web app. Upload PDFs, ask natural-language q
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Streamlit UI                             │
 │  Sidebar: upload PDF, list/delete docs                          │
-│  Main:    question input → answer + cited sources + confidence  │
+│  Main:    question input → answer cards + citations + confidence│
 └────────────────────────────┬────────────────────────────────────┘
                              │ HTTP (httpx)
                              ▼
@@ -20,13 +20,13 @@ A RAG-powered document intelligence web app. Upload PDFs, ask natural-language q
 │  POST /upload      ──► ingest.py                                │
 │                        LlamaIndex SimpleDirectoryReader         │
 │                        SentenceSplitter (512 tokens, 50 overlap)│
-│                        OpenAI text-embedding-3-small            │
+│                        Ollama nomic-embed-text (embeddings)     │
 │                        ChromaDB .add()                          │
 │                                                                 │
 │  POST /query       ──► retrieval.py                             │
-│                        OpenAI embed question                    │
-│                        ChromaDB cosine search (top-K)           │
-│                        GPT-4o-mini with cited-answer prompt     │
+│                        Ollama nomic-embed-text (embed question) │
+│                        ChromaDB cosine search (top-5)           │
+│                        Ollama llama3.2 (cited-answer prompt)    │
 │                        confidence = mean(cosine similarities)   │
 │                                                                 │
 │  GET  /documents   ──► list all uploaded docs                   │
@@ -34,60 +34,74 @@ A RAG-powered document intelligence web app. Upload PDFs, ask natural-language q
 └────────────────────────────┬────────────────────────────────────┘
                              │
                              ▼
-                    ┌─────────────────┐
-                    │   ChromaDB      │
-                    │  (./chroma_db)  │
-                    │  cosine index   │
-                    └─────────────────┘
+              ┌──────────────────────────┐
+              │   ChromaDB (./chroma_db) │
+              │   Ollama (localhost:11434)│
+              └──────────────────────────┘
 ```
 
 ---
 
-## Setup (local)
+## Setup
 
-**1. Clone and configure**
+### 1. Install Ollama
+
+Download from [ollama.com](https://ollama.com) and install it, then pull the required models:
 
 ```bash
-git clone <your-repo-url>
-cd docmind
-cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
+ollama pull llama3.2
+ollama pull nomic-embed-text
+ollama serve
 ```
 
-**2. Install dependencies**
+> Ollama must be running (`ollama serve`) before starting the backend.
+
+### 2. Clone and install
 
 ```bash
+git clone https://github.com/aminabk99/docmind.git
+cd docmind
 pip install -r requirements.txt
 ```
 
-**3. Run the backend**
+### 3. Configure environment
+
+```bash
+cp .env.example .env
+# No API keys needed — defaults work out of the box
+```
+
+### 4. Run the backend
 
 ```bash
 uvicorn backend.main:app --reload
-# API available at http://localhost:8000
-# Interactive docs at http://localhost:8000/docs
+# API at http://localhost:8000
+# Docs at http://localhost:8000/docs
 ```
 
-**4. Run the frontend** (new terminal)
+### 5. Run the frontend (new terminal)
 
 ```bash
 streamlit run frontend/app.py
-# UI available at http://localhost:8501
+# UI at http://localhost:8501
 ```
 
 ---
 
 ## Setup (Docker)
 
+> Make sure Ollama is running on the host before starting containers.
+
 ```bash
-cp .env.example .env   # add your OPENAI_API_KEY
+cp .env.example .env
+# Edit .env and set: OLLAMA_BASE_URL=http://host.docker.internal:11434
 docker-compose up --build
 ```
 
-| Service  | URL                    |
-|----------|------------------------|
-| Frontend | http://localhost:8501  |
-| Backend  | http://localhost:8000  |
+| Service  | URL                        |
+|----------|----------------------------|
+| Frontend | http://localhost:8501      |
+| Backend  | http://localhost:8000      |
 | API docs | http://localhost:8000/docs |
 
 ---
@@ -104,7 +118,7 @@ docker-compose up --build
 **POST /query response:**
 ```json
 {
-  "answer": "The policy states… [report.pdf, page 3]",
+  "answer": "The report concludes… [report.pdf, page 3]",
   "sources": [
     {"filename": "report.pdf", "page_number": 3, "chunk_text": "…"}
   ],
@@ -127,11 +141,19 @@ docker-compose up --build
 
 | Badge | Range | Meaning |
 |-------|-------|---------|
-| 🟢 High | ≥ 0.80 | Retrieved chunks are highly relevant |
-| 🟡 Medium | 0.50 – 0.79 | Partial match; review sources |
-| 🔴 Low | < 0.50 | Weak match; answer may be unreliable |
+| 🟢 High Confidence | ≥ 0.80 | Retrieved chunks are highly relevant |
+| 🟡 Medium Confidence | 0.50 – 0.79 | Partial match; review sources |
+| 🔴 Low Confidence | < 0.50 | Weak match; answer may be unreliable |
 
-The score is the average cosine similarity between the query embedding and the retrieved chunk embeddings.
+---
+
+## Note: Migrating from a previous version
+
+If you ran the OpenAI version and have an existing `chroma_db/` folder, delete it before starting — the embedding dimensions changed (OpenAI: 1536-dim → nomic-embed-text: 768-dim) and ChromaDB will reject the mismatch:
+
+```bash
+rm -rf chroma_db/
+```
 
 ---
 
@@ -149,8 +171,8 @@ The score is the average cosine similarity between the query embedding and the r
 | Frontend | Streamlit |
 | Backend | FastAPI + uvicorn |
 | Orchestration | LlamaIndex (load + chunk) |
-| Embeddings | OpenAI text-embedding-3-small |
-| LLM | GPT-4o-mini |
+| Embeddings | Ollama nomic-embed-text |
+| LLM | Ollama llama3.2 |
 | Vector DB | ChromaDB (persistent) |
 | HTTP client | httpx |
 | Containerization | Docker + docker-compose |

@@ -6,10 +6,10 @@ from datetime import datetime, timezone
 import chromadb
 from llama_index.core import SimpleDirectoryReader
 from llama_index.core.node_parser import SentenceSplitter
-from openai import OpenAI
+from llama_index.embeddings.ollama import OllamaEmbedding
 
 from backend.config import (
-    OPENAI_API_KEY,
+    OLLAMA_BASE_URL,
     CHROMA_DB_PATH,
     COLLECTION_NAME,
     EMBEDDING_MODEL,
@@ -29,14 +29,14 @@ def get_chroma_collection() -> chromadb.Collection:
 
 def ingest_pdf(file_bytes: bytes, original_filename: str) -> dict:
     """
-    Load a PDF, split into chunks, embed with OpenAI, and store in ChromaDB.
+    Load a PDF, split into chunks, embed with Ollama nomic-embed-text, store in ChromaDB.
     Returns {doc_id, filename, chunk_count}.
     """
     doc_id = str(uuid.uuid4())
     upload_time = datetime.now(timezone.utc).isoformat()
 
-    # Write to a temp file with delete=False — required on Windows to avoid
-    # file-locking conflicts when LlamaIndex opens the path independently.
+    # delete=False required on Windows — LlamaIndex needs to open the path
+    # independently, and Windows locks the file while the handle is open.
     tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
     tmp.write(file_bytes)
     tmp_path = tmp.name
@@ -52,24 +52,18 @@ def ingest_pdf(file_bytes: bytes, original_filename: str) -> dict:
         if not texts:
             return {"doc_id": doc_id, "filename": original_filename, "chunk_count": 0}
 
-        # Single batched embedding call — OpenAI allows up to 2048 inputs.
-        # For very large documents, split into batches of 500 to be safe.
-        openai_client = OpenAI(api_key=OPENAI_API_KEY)
-        embeddings = []
-        batch_size = 500
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            response = openai_client.embeddings.create(
-                model=EMBEDDING_MODEL, input=batch
-            )
-            embeddings.extend([item.embedding for item in response.data])
+        embed_model = OllamaEmbedding(
+            model_name=EMBEDDING_MODEL,
+            base_url=OLLAMA_BASE_URL,
+        )
+        embeddings = embed_model.get_text_embedding_batch(texts, show_progress=False)
 
         collection = get_chroma_collection()
 
         ids, metadatas = [], []
         for idx, node in enumerate(nodes):
-            # page_label is a 1-based string in llama-index>=0.10 with pypdf;
-            # older versions used 'page' (0-based int). Cascade handles both.
+            # page_label is 1-based string in llama-index>=0.10; 'page' is
+            # 0-based int in older versions. Cascade handles both.
             raw_page = (
                 node.metadata.get("page_label")
                 or node.metadata.get("page")
@@ -78,7 +72,6 @@ def ingest_pdf(file_bytes: bytes, original_filename: str) -> dict:
             )
             try:
                 page_number = int(raw_page)
-                # If the value was 0-indexed (older LlamaIndex), convert to 1-based
                 if page_number == 0:
                     page_number = 1
             except (ValueError, TypeError):
