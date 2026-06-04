@@ -158,9 +158,8 @@ rm -rf chroma_db/
 ---
 
 ## Demo
+<img width="561" height="427" alt="DocMind Demo" src="https://github.com/user-attachments/assets/3853cdee-17ce-4b77-beb4-639db9bfce68" />
 
-<!-- Replace with your actual GIF -->
-![DocMind Demo](demo.gif)
 
 ---
 
