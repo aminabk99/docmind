@@ -1,0 +1,210 @@
+{
+  "timestamp": "2026-07-14T16:46:12.665316+00:00",
+  "base_url": "http://localhost:11434",
+  "models": [
+    "tinyllama",
+    "phi3:mini",
+    "mistral:7b"
+  ],
+  "prompts": [
+    "factual_recall",
+    "summarisation",
+    "reasoning",
+    "instruction_following",
+    "citation_format"
+  ],
+  "runs": [
+    {
+      "model": "tinyllama",
+      "prompt_results": [
+        {
+          "prompt_id": "factual_recall",
+          "category": "Factual",
+          "answer": "Sure! Here's an answer to your question:\n\nThe three main branches of the U.S. Government are:\n\n1. Executive Branch (President, Cabinet, etc.) - The executive branch is responsible for executing the laws passed by Congress and implementing policies. It also oversees the military and other federal age",
+          "tokens_generated": 171,
+          "tokens_per_sec": 7.3,
+          "ttft_s": 1.435,
+          "generation_s": 23.421,
+          "total_s": 26.448,
+          "wall_time_s": 31.512
+        },
+        {
+          "prompt_id": "summarisation",
+          "category": "Summarisation",
+          "answer": "Summarizes the passage \"The transformer architecture, introduced in the 2017 paper 'Attention Is All You Need', replaced recurrent networks with self-attenion mechanisms.\"",
+          "tokens_generated": 41,
+          "tokens_per_sec": 16.11,
+          "ttft_s": 2.166,
+          "generation_s": 2.544,
+          "total_s": 5.0,
+          "wall_time_s": 8.696
+        },
+        {
+          "prompt_id": "reasoning",
+          "category": "Reasoning",
+          "answer": "To answer the question, we need to know the prices of the items being sold:\n- Apple price: \u00a30.50\n- Orange price: \u00a30.75\n\nLet's assume that a customer buys 4 apple and 3 orange products for \u00a312.50 (\u00a34 x 3) using a \u00a35 note.\n\nThe total amount spent by the customer is \u00a312.50, which includes the price of ",
+          "tokens_generated": 206,
+          "tokens_per_sec": 7.62,
+          "ttft_s": 1.709,
+          "generation_s": 27.035,
+          "total_s": 29.297,
+          "wall_time_s": 40.418
+        },
+        {
+          "prompt_id": "instruction_following",
+          "category": "Instruction Following",
+          "answer": "1. Control over data access: Local LLMs can be customized and optimized for specific use cases, allowing for greater control over how data is accessed and used. This can lead to more accurate and relevant results for individual users.\n\n2. Flexibility in deployment: Running an LLM locally allows for ",
+          "tokens_generated": 270,
+          "tokens_per_sec": 5.79,
+          "ttft_s": 2.535,
+          "generation_s": 46.613,
+          "total_s": 52.283,
+          "wall_time_s": 55.715
+        },
+        {
+          "prompt_id": "citation_format",
+          "category": "Citation Format",
+          "answer": "The source for this context is policy.pdf, which has a table on page 2 that lists the processing time for refunds. The table states that refunds are processed within 30 business days.",
+          "tokens_generated": 45,
+          "tokens_per_sec": 15.82,
+          "ttft_s": 1.903,
+          "generation_s": 2.845,
+          "total_s": 4.944,
+          "wall_time_s": 8.569
+        }
+      ],
+      "mean_tokens_per_sec": 10.53,
+      "mean_ttft_s": 1.95,
+      "mean_total_s": 23.594,
+      "total_tokens": 733
+    },
+    {
+      "model": "phi3:mini",
+      "prompt_results": [
+        {
+          "prompt_id": "factual_recall",
+          "category": "Factual",
+          "answer": "- Legislative Branch (Congress): Makes laws\n\n- Executive Branch (President, Vice President, Cabinet): Enforces laws\n\n- Judicial Branch (Supreme Court and other courts): Interprets laws",
+          "tokens_generated": 51,
+          "tokens_per_sec": 6.06,
+          "ttft_s": 4.132,
+          "generation_s": 8.422,
+          "total_s": 12.76,
+          "wall_time_s": 16.379
+        },
+        {
+          "prompt_id": "summarisation",
+          "category": "Summarisation",
+          "answer": "The transformer architecture revolutionized sequence processing by using self-attention instead of recurrent networks, leading to faster training times and scalability for creating extensive language models such as GPT and BERT. This parallel approach significantly improved the efficiency in handlin",
+          "tokens_generated": 61,
+          "tokens_per_sec": 5.14,
+          "ttft_s": 6.982,
+          "generation_s": 11.873,
+          "total_s": 18.966,
+          "wall_time_s": 22.235
+        },
+        {
+          "prompt_id": "reasoning",
+          "category": "Reasoning",
+          "answer": "Cost of one apple = \u00a30.50\nNumber of apples bought = 4\nTotal cost for apples = Cost per apple * Number of apples\n= \u00a30.50 * 4\n= \u00a32.00\n\nCost of one orange = \u00a30.75\nNumber of oranges bought = 3\nTotal cost for oranges = Cost per orange * Number of oranges\n= \u00a30.75 * 3\n= \u00a32.25\n\nTotal spent by customer = Tot",
+          "tokens_generated": 201,
+          "tokens_per_sec": 4.85,
+          "ttft_s": 4.832,
+          "generation_s": 41.419,
+          "total_s": 46.633,
+          "wall_time_s": 50.355
+        },
+        {
+          "prompt_id": "instruction_following",
+          "category": "Instruction Following",
+          "answer": "1. Data sovereigty: Running the model on local hardware ensures full control over sensitive data, preventing unauthorized access or breaches from external sources.\n2. Reduced exposure risk: Local execution minimizes risks associated with transmitting personal information to third-party cloud service",
+          "tokens_generated": 192,
+          "tokens_per_sec": 5.19,
+          "ttft_s": 3.23,
+          "generation_s": 37.001,
+          "total_s": 40.383,
+          "wall_time_s": 43.364
+        },
+        {
+          "prompt_id": "citation_format",
+          "category": "Citation Format",
+          "answer": "According to \"policy.pdf\" on page 2: Refunds are processed within 30 business days. [Source: policy.pdf, page 2]",
+          "tokens_generated": 37,
+          "tokens_per_sec": 5.44,
+          "ttft_s": 5.674,
+          "generation_s": 6.796,
+          "total_s": 12.801,
+          "wall_time_s": 16.321
+        }
+      ],
+      "mean_tokens_per_sec": 5.34,
+      "mean_ttft_s": 4.97,
+      "mean_total_s": 26.309,
+      "total_tokens": 542
+    },
+    {
+      "model": "mistral:7b",
+      "prompt_results": [
+        {
+          "prompt_id": "factual_recall",
+          "category": "Factual",
+          "answer": "The three main branches of the U.S. government are:\n\n1. Legislative Branch: Makes laws. It consists of Congress, which includes the House of Representatives and the Senate.\n\n2. Executive Branch: Enforces laws. It is headed by the President who carries out and enforces federal laws and acts as the co",
+          "tokens_generated": 136,
+          "tokens_per_sec": 3.42,
+          "ttft_s": 5.862,
+          "generation_s": 39.774,
+          "total_s": 105.264,
+          "wall_time_s": 108.597
+        },
+        {
+          "prompt_id": "summarisation",
+          "category": "Summarisation",
+          "answer": "The transformer architecture, as introduced in the 2017 paper 'Attention Is All You Need', replaced recurrent networks with self-attention mechanisms, allowing for parallel processing of sequences instead of sequential processing. This improvement significantly reduced training time and facilitated ",
+          "tokens_generated": 70,
+          "tokens_per_sec": 3.3,
+          "ttft_s": 9.518,
+          "generation_s": 21.226,
+          "total_s": 30.933,
+          "wall_time_s": 34.104
+        },
+        {
+          "prompt_id": "reasoning",
+          "category": "Reasoning",
+          "answer": "First, let's calculate the total cost of the apples and oranges:\n\nCost of apples = Number of apples * Price per apple\n                        = 4 * \u00a30.50\n                        = \u00a32\n\nCost of oranges = Number of oranges * Price per orange\n                          = 3 * \u00a30.75\n                       ",
+          "tokens_generated": 189,
+          "tokens_per_sec": 3.36,
+          "ttft_s": 7.554,
+          "generation_s": 56.249,
+          "total_s": 63.918,
+          "wall_time_s": 67.196
+        },
+        {
+          "prompt_id": "instruction_following",
+          "category": "Instruction Following",
+          "answer": "1. Control over Data: Running an LLM (Language Model) locally gives you full control over your data, as it remains on your device and isn't shared with any third parties.\n2. Reduced Data Leakage: By not relying on a cloud API, there is less risk of sensitive information being inadvertently leaked or",
+          "tokens_generated": 181,
+          "tokens_per_sec": 3.31,
+          "ttft_s": 4.446,
+          "generation_s": 54.693,
+          "total_s": 59.339,
+          "wall_time_s": 62.485
+        },
+        {
+          "prompt_id": "citation_format",
+          "category": "Citation Format",
+          "answer": "Refunds take 30 business days to be processed, as stated in the policy document on page 2: [policy.pdf, page 2]",
+          "tokens_generated": 34,
+          "tokens_per_sec": 3.42,
+          "ttft_s": 7.914,
+          "generation_s": 9.951,
+          "total_s": 17.973,
+          "wall_time_s": 20.966
+        }
+      ],
+      "mean_tokens_per_sec": 3.36,
+      "mean_ttft_s": 7.059,
+      "mean_total_s": 55.485,
+      "total_tokens": 610
+    }
+  ]
+}
