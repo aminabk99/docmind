@@ -1,0 +1,96 @@
+name: RAG Eval Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  eval-quick:
+    name: Quick eval (CI-safe, no GPU)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # The cross-encoder model is downloaded on first use.
+      # In quick mode the LLM is mocked, but the reranker would still try
+      # to download. We skip model download in quick mode by setting an env var.
+      - name: Run quick eval (mocked LLM + mocked reranker)
+        env:
+          DOCMIND_SKIP_RERANKER: "1"   # reranker.py checks this and falls back
+          CHROMA_DB_PATH: /tmp/chroma_test
+        run: python -m eval.run_evals --quick --output eval_results.json
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-quick
+          path: eval_results.json
+
+  eval-full:
+    name: Full eval (with Ollama)
+    runs-on: ubuntu-latest
+    # Only run on pushes to main (not every PR) — Ollama is slow on shared runners
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          ollama serve &
+          sleep 5
+
+      - name: Pull required models
+        run: |
+          ollama pull nomic-embed-text
+          ollama pull tinyllama
+
+      - name: Start DocMind backend
+        env:
+          CHROMA_DB_PATH: /tmp/chroma_eval
+          OLLAMA_BASE_URL: http://localhost:11434
+        run: |
+          uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
+          sleep 3
+
+      - name: Upload fixture PDF
+        run: |
+          curl -s -F "file=@tests/fixtures/sample.pdf" http://localhost:8000/upload
+          sleep 2
+
+      - name: Run full eval
+        env:
+          CHROMA_DB_PATH: /tmp/chroma_eval
+        run: python -m eval.run_evals --full --backend-url http://localhost:8000 --output eval_results_full.json
+
+      - name: Upload eval results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-full
+          path: eval_results_full.json
