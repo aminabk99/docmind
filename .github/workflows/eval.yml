@@ -74,8 +74,28 @@ jobs:
           uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
 
-      - name: Upload fixture PDF and ingest
+      - name: Generate fixture PDF and ingest
         run: |
+          pip install fpdf2 --quiet
+          mkdir -p tests/fixtures
+          python -c "
+          from fpdf import FPDF
+          pdf = FPDF()
+          pdf.add_page()
+          pdf.set_font('Helvetica', size=12)
+          for line in [
+            'DocMind Evaluation Sample Document',
+            'The refund policy allows returns within 30 days of purchase.',
+            'Customer support is available Monday to Friday, 9am to 5pm.',
+            'All prices are listed in USD and subject to change without notice.',
+            'The system uses a microservices architecture with AES-256 encryption.',
+            'The API rate limit is 1000 requests per hour per user.',
+            'Accounts inactive for 90 days are automatically deactivated.',
+          ]:
+            pdf.cell(0, 10, line, ln=True)
+          pdf.output('tests/fixtures/sample.pdf')
+          print('Fixture PDF created.')
+          "
           curl -s -F "file=@tests/fixtures/sample.pdf" http://localhost:8000/upload
           sleep 2
 
