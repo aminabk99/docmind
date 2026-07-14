@@ -180,15 +180,24 @@ docker-compose up --build
 
 ## Eval Pipeline
 
+No manual labelling needed — the pipeline evaluates itself.
+
 ```bash
-# Quick mode — mocked LLM, safe for CI
+# Step 1: auto-generate Q&A pairs from whatever is currently ingested
+python -m eval.generate_cases --max-cases 20
+
+# Step 2a: quick mode — mocked LLM, safe for CI (no GPU required)
 python -m eval.run_evals --quick
 
-# Full mode — requires Ollama running with models pulled
+# Step 2b: full mode — LLM-as-judge scores every answer on faithfulness + relevance
 python -m eval.run_evals --full --backend-url http://localhost:8000
 ```
 
-Metrics: **Context Precision**, **Answer Faithfulness**, **Pass Rate**. CI gates on all three thresholds via `.github/workflows/eval.yml`.
+**How it works:**
+- `generate_cases.py` pulls chunks from ChromaDB and calls the local LLM to write a question and ground-truth answer for each chunk automatically
+- `llm_judge.py` scores the pipeline's answers against those ground-truth answers on two axes: **Faithfulness** (does the answer stick to the sources?) and **Relevance** (does it actually answer the question?)
+- Scores are appended to `eval/scores_history.jsonl` on every run so quality regressions are visible across commits
+- CI runs case generation + full eval on every push to main via `.github/workflows/eval.yml` and fails the build if thresholds are not met
 
 ---
 
