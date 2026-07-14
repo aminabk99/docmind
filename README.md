@@ -1,235 +1,138 @@
-# DocMind
+# M365Mind
 
-A RAG-powered document intelligence web app that runs **fully locally** — no API keys, no cloud, no cost. Upload PDFs, ask natural-language questions, and get cited answers with confidence scores.
+**Local AI for Microsoft 365 Governance** — query your tenant's Conditional Access policies, Sensitivity Labels, and Named Locations using natural language. Everything runs on your machine. No data leaves your environment.
 
-Retrieval uses a **hybrid BM25 + vector search pipeline** with cross-encoder reranking and enforced source citations. A CI-gated eval suite runs on every push.
+---
+
+## Why local?
+
+Governance policies contain regulated, confidential data — who can access what, from where, under which conditions. Sending that to a cloud AI service is often a compliance violation. M365Mind runs Phi-3.5-mini locally so your policies never leave the machine.
+
+---
+
+## Features
+
+- **Two modes** — explore with realistic demo data, or connect your real Microsoft 365 tenant via OAuth2
+- **Hybrid RAG pipeline** — BM25 sparse + ChromaDB vector search → Reciprocal Rank Fusion → cross-encoder reranking → Phi-3.5-mini
+- **Microsoft Graph API** — pulls Conditional Access policies, Named Locations, and Sensitivity Labels directly from your tenant
+- **Citation enforcement** — every answer is grounded in retrieved policy chunks; hallucinated citations are stripped
+- **p50/p95/p99 latency monitoring** — per-stage metrics (embed, vector, BM25, rerank, LLM) via `/metrics`
+- **No Ollama, no API keys** — Phi-3.5-mini (MIT licence) and nomic-embed-text load via HuggingFace on first run (~7.6 GB)
+
+---
+
+## Setup
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/aminabk99/docmind
+cd docmind
+pip install -r requirements.txt
+```
+
+> First run downloads Phi-3.5-mini (~7.6 GB). GPU is used if available; CPU works but is slower.
+
+### 2. Configure environment
+
+```bash
+cp .env.example .env
+```
+
+For **demo mode** you don't need to fill in anything. For **real-tenant mode**, register an app in [Azure Portal → Entra ID → App registrations](https://portal.azure.com) and add:
+
+```
+AZURE_CLIENT_ID=<your-app-client-id>
+AZURE_TENANT_ID=<your-tenant-id>
+AZURE_CLIENT_SECRET=<your-client-secret>
+```
+
+Required API permissions: `Policy.Read.All`, `InformationProtectionPolicy.Read.All`  
+Redirect URI: `http://localhost:8000/callback`
+
+### 3. Start the app
+
+```bash
+# Terminal 1 — backend
+uvicorn backend.main:app --reload
+
+# Terminal 2 — frontend
+streamlit run frontend/app.py
+```
+
+Open [http://localhost:8501](http://localhost:8501).
+
+---
+
+## Try the demo
+
+Click **Launch Demo** on the landing screen — no Microsoft account needed. Sample policies load instantly and cover:
+
+- 8 Conditional Access policies (MFA, device compliance, legacy auth block, country restrictions, sign-in risk)
+- 3 Named Locations (trusted office IPs, VPN, high-risk countries)
+- 6 Sensitivity Labels (Public → Highly Confidential sublabels)
+
+Try asking: *"Which policies require MFA?"* or *"Are legacy protocols blocked?"*
 
 ---
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Streamlit UI                             │
-│  Sidebar: upload PDF, list/delete docs                          │
-│  Main:    question input → answer cards + citations + confidence│
-└────────────────────────────┬────────────────────────────────────┘
-                             │ HTTP (httpx)
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      FastAPI Backend                            │
-│                                                                 │
-│  POST /upload      ──► ingest.py                                │
-│                        LlamaIndex SimpleDirectoryReader         │
-│                        SentenceSplitter (512 tokens, 50 overlap)│
-│                        Ollama nomic-embed-text (embeddings)     │
-│                        ChromaDB .add() + BM25 index rebuild     │
-│                                                                 │
-│  POST /query       ──► retrieval.py                             │
-│                        ① Vector search  (ChromaDB, top-20)     │
-│                        ② BM25 search    (rank-bm25, top-20)    │
-│                        ③ RRF fusion     (k=60, top-15)         │
-│                        ④ Cross-encoder rerank (MiniLM, top-k)  │
-│                        ⑤ Ollama tinyllama (cited-answer prompt) │
-│                        ⑥ Citation enforcement (strip halluc.)  │
-│                        confidence = normalised mean rerank score│
-│                                                                 │
-│  GET  /documents   ──► list all uploaded docs                   │
-│  DELETE /documents/{id} ──► remove doc + chunks + BM25 rebuild  │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────────┐
-              │   ChromaDB      (./chroma_db)    │
-              │   BM25 index    (./chroma_db/    │
-              │                  bm25_index.pkl) │
-              │   Ollama        (localhost:11434) │
-              └──────────────────────────────────┘
+User question
+      │
+      ▼
+ Embed (nomic-embed-text · sentence-transformers)
+      │
+      ├── Vector search (ChromaDB cosine, top-20)
+      └── Sparse search (BM25Okapi, top-20)
+                        │
+                  RRF Fusion (k=60)
+                        │
+             Cross-encoder reranking
+             (ms-marco-MiniLM-L-6-v2)
+                        │
+              Phi-3.5-mini (local)
+                        │
+            Citation enforcement
+                        │
+               Answer + Sources
+```
+
+Policy data path (real tenant):
+```
+Microsoft Graph API → graph_client.py → policy_formatter.py → ingest_text() → ChromaDB
 ```
 
 ---
 
-## Setup
-
-### 1. Install Ollama
-
-Download from [ollama.com](https://ollama.com) and install it, then pull the required models:
-
-```bash
-ollama pull tinyllama
-ollama pull nomic-embed-text
-ollama serve
-```
-
-> Ollama must be running (`ollama serve`) before starting the backend.
-
-### 2. Clone and install
-
-```bash
-git clone https://github.com/aminabk99/docmind.git
-cd docmind
-pip install -r requirements.txt
-```
-
-### 3. Configure environment
-
-```bash
-cp .env.example .env
-# No API keys needed — defaults work out of the box
-```
-
-### 4. Run the backend
-
-```bash
-uvicorn backend.main:app --reload
-# API at http://localhost:8000
-# Docs at http://localhost:8000/docs
-```
-
-### 5. Run the frontend (new terminal)
-
-```bash
-streamlit run frontend/app.py
-# UI at http://localhost:8501
-```
-
----
-
-## Setup (Docker)
-
-> Make sure Ollama is running on the host before starting containers.
-
-```bash
-cp .env.example .env
-# Edit .env and set: OLLAMA_BASE_URL=http://host.docker.internal:11434
-docker-compose up --build
-```
-
-| Service  | URL                        |
-|----------|----------------------------|
-| Frontend | http://localhost:8501      |
-| Backend  | http://localhost:8000      |
-| API docs | http://localhost:8000/docs |
-
----
-
-## API Reference
+## API endpoints
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/upload` | Upload a PDF (multipart/form-data, field: `file`) |
-| `POST` | `/query` | Ask a question `{"question": "...", "top_k": 5}` |
-| `GET` | `/documents` | List all ingested documents |
-| `DELETE` | `/documents/{doc_id}` | Delete a document and all its chunks |
-
-**POST /query response:**
-```json
-{
-  "answer": "The report concludes… [report.pdf, page 3]",
-  "sources": [
-    {
-      "filename": "report.pdf",
-      "page_number": 3,
-      "chunk_text": "…",
-      "rerank_score": 4.821
-    }
-  ],
-  "confidence": 0.847,
-  "retrieval_stats": {
-    "vector_hits": 20,
-    "bm25_hits": 14,
-    "after_rrf": 15,
-    "after_rerank": 5
-  }
-}
-```
+| `POST` | `/demo/load` | Load sample policies |
+| `GET` | `/demo/status` | Check if demo data is loaded |
+| `GET` | `/auth-url` | Get Microsoft OAuth2 login URL |
+| `GET` | `/callback` | OAuth2 redirect handler |
+| `GET` | `/auth-status?sid=` | Check session connection |
+| `POST` | `/sync` | Pull policies from tenant |
+| `POST` | `/query` | Ask a question |
+| `GET` | `/documents` | List loaded policies |
+| `DELETE` | `/documents/{doc_id}` | Remove a policy |
+| `GET` | `/metrics` | p50/p95/p99 latency stats |
 
 ---
 
-## Retrieval Pipeline
+## Tech stack
 
-| Stage | What happens |
-|-------|-------------|
-| ① Vector search | Question embedded with `nomic-embed-text`; top-20 chunks retrieved from ChromaDB by cosine similarity |
-| ② BM25 search | Same question searched against a persisted BM25Okapi index; top-20 chunks returned |
-| ③ RRF fusion | Both ranked lists merged with Reciprocal Rank Fusion (k=60); top-15 candidates selected |
-| ④ Cross-encoder rerank | `cross-encoder/ms-marco-MiniLM-L-6-v2` scores each candidate against the query; reranked to top-k |
-| ⑤ Generation | Cited-answer prompt sent to Ollama tinyllama with the reranked context |
-| ⑥ Citation enforcement | Any `[filename, page N]` tag not matching a retrieved source is stripped from the answer |
-
----
-
-## Example Queries
-
-- *"What are the key findings of this report?"*
-- *"Summarize the methodology section."*
-- *"What dates or deadlines are mentioned?"*
-- *"Who are the authors or contributors?"*
-
----
-
-## Confidence Score
-
-| Badge | Range | Meaning |
-|-------|-------|---------|
-| 🟢 High Confidence | ≥ 0.80 | Cross-encoder scored retrieved chunks as highly relevant |
-| 🟡 Medium Confidence | 0.50 – 0.79 | Partial match; review sources |
-| 🔴 Low Confidence | < 0.50 | Weak match; answer may be unreliable |
-
----
-
-## Eval Pipeline
-
-No manual labelling needed — the pipeline evaluates itself.
-
-```bash
-# Step 1: auto-generate Q&A pairs from whatever is currently ingested
-python -m eval.generate_cases --max-cases 20
-
-# Step 2a: quick mode — mocked LLM, safe for CI (no GPU required)
-python -m eval.run_evals --quick
-
-# Step 2b: full mode — LLM-as-judge scores every answer on faithfulness + relevance
-python -m eval.run_evals --full --backend-url http://localhost:8000
-```
-
-**How it works:**
-- `generate_cases.py` pulls chunks from ChromaDB and calls the local LLM to write a question and ground-truth answer for each chunk automatically
-- `llm_judge.py` scores the pipeline's answers against those ground-truth answers on two axes: **Faithfulness** (does the answer stick to the sources?) and **Relevance** (does it actually answer the question?)
-- Scores are appended to `eval/scores_history.jsonl` on every run so quality regressions are visible across commits
-- CI runs case generation + full eval on every push to main via `.github/workflows/eval.yml` and fails the build if thresholds are not met
-
----
-
-## Note: Migrating from a previous version
-
-If you have an existing `chroma_db/` folder from a previous version, delete it before starting:
-
-```bash
-rm -rf chroma_db/
-```
-
-The BM25 index (`chroma_db/bm25_index.pkl`) is rebuilt automatically on first ingest.
-
----
-
-## Demo
-<img width="561" height="427" alt="DocMind Demo" src="https://github.com/user-attachments/assets/3853cdee-17ce-4b77-beb4-639db9bfce68" />
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
+| Component | Technology |
+|-----------|-----------|
+| LLM | Phi-3.5-mini-instruct (Microsoft, MIT) |
+| Embeddings | nomic-embed-text-v1.5 (HuggingFace) |
+| Vector store | ChromaDB |
+| Sparse retrieval | BM25Okapi (rank-bm25) |
+| Reranker | MiniLM cross-encoder (sentence-transformers) |
+| M365 auth | MSAL Python |
+| Graph API | Microsoft Graph v1.0 |
+| Backend | FastAPI + Uvicorn |
 | Frontend | Streamlit |
-| Backend | FastAPI + uvicorn |
-| Orchestration | LlamaIndex (load + chunk) |
-| Embeddings | Ollama nomic-embed-text |
-| Sparse retrieval | rank-bm25 (BM25Okapi) |
-| Reranking | sentence-transformers (MiniLM cross-encoder) |
-| LLM | Ollama tinyllama |
-| Vector DB | ChromaDB (persistent) |
-| HTTP client | httpx |
-| Containerization | Docker + docker-compose |
-| CI / Eval | GitHub Actions + custom eval pipeline |

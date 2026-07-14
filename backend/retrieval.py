@@ -17,17 +17,10 @@ from __future__ import annotations
 
 import re
 
-from llama_index.core.llms import ChatMessage
-from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_index.llms.ollama import Ollama
-
-from backend.config import (
-    EMBEDDING_MODEL,
-    LLM_MODEL,
-    OLLAMA_BASE_URL,
-)
 from backend.ingest import get_chroma_collection
 from backend.bm25_store import get_bm25_store
+from backend.embeddings import embed
+from backend.generation import generate
 from monitoring.tracer import Tracer, write_trace
 from backend.reranker import rerank
 
@@ -44,13 +37,13 @@ _RRF_K = 60
 # How many candidates go into the cross-encoder after RRF
 _RERANK_CANDIDATES = 15
 
-SYSTEM_PROMPT = """You are DocMind, a precise document analysis assistant.
-Answer the user's question using ONLY the provided context chunks.
-For EVERY factual claim you make, you MUST cite the source using the exact format: [filename, page N].
-If multiple sources support a claim, cite all of them: [file1.pdf, page 2][file2.pdf, page 5].
+SYSTEM_PROMPT = """You are M365Mind, an AI assistant for Microsoft 365 architects and IT administrators.
+Answer questions using ONLY the provided policy documents and governance context.
+For EVERY factual claim, cite the source using the exact format: [policy name, section N].
+If multiple sources support a claim, cite all of them.
 If the context does not contain enough information, respond with exactly:
-"I could not find sufficient information in the uploaded documents to answer this question."
-Do not fabricate information. Do not invent citations. Be concise but complete."""
+"I could not find sufficient information in the loaded policies to answer this question."
+Do not fabricate policies, permissions, or settings. Do not invent citations. Be precise and concise."""
 
 # Regex that matches [any text, page N] — used for citation verification
 _CITATION_RE = re.compile(r'\[([^\],]+),\s*page\s*(\d+)\]', re.IGNORECASE)
@@ -61,8 +54,7 @@ _CITATION_RE = re.compile(r'\[([^\],]+),\s*page\s*(\d+)\]', re.IGNORECASE)
 # ---------------------------------------------------------------------------
 
 def _embed(text: str) -> list[float]:
-    model = OllamaEmbedding(model_name=EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
-    return model.get_text_embedding(text)
+    return embed(text)
 
 
 def _doc_filter(doc_ids: list[str]) -> dict:
@@ -280,13 +272,8 @@ def answer_question(
     context_str  = "\n\n---\n\n".join(context_parts)
     user_message = f"Context:\n{context_str}\n\nQuestion: {question}"
 
-    llm = Ollama(model=LLM_MODEL, base_url=OLLAMA_BASE_URL, request_timeout=120.0)
     with tracer.span("llm"):
-        response = llm.chat([
-            ChatMessage(role="system", content=SYSTEM_PROMPT),
-            ChatMessage(role="user",   content=user_message),
-        ])
-    raw_answer = response.message.content
+        raw_answer = generate(SYSTEM_PROMPT, user_message)
 
     # ------------------------------------------------------------------
     # Step 6 — Citation enforcement

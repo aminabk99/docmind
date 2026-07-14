@@ -1,4 +1,14 @@
+"""
+M365Mind — Microsoft 365 Governance Intelligence
+Streamlit frontend.
+
+Two entry paths:
+  1. "Try Demo"               — loads sample M365 policies, no account needed
+  2. "Connect to Microsoft 365" — real tenant via MSAL OAuth2
+"""
+
 import os
+import time
 import uuid as _uuid
 
 import httpx
@@ -7,8 +17,8 @@ import streamlit as st
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 st.set_page_config(
-    page_title="DocMind",
-    page_icon="📄",
+    page_title="M365Mind",
+    page_icon="🔷",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -26,7 +36,7 @@ html, body, [class*="css"], button, input, textarea, select {
 
 /* ── Dark sidebar ─────────────────────────────────────────────────────── */
 section[data-testid="stSidebar"] > div:first-child {
-    background: #111827;
+    background: #0f172a;
     border-right: none;
     padding-top: 1.25rem;
 }
@@ -36,16 +46,16 @@ section[data-testid="stSidebar"] small,
 section[data-testid="stSidebar"] label,
 section[data-testid="stSidebar"] .stMarkdown,
 section[data-testid="stSidebar"] .stCaption {
-    color: #9ca3af !important;
+    color: #94a3b8 !important;
 }
-section[data-testid="stSidebar"] h3 { color: #f9fafb !important; }
-section[data-testid="stSidebar"] hr { border-color: #1f2937; }
+section[data-testid="stSidebar"] h3 { color: #f1f5f9 !important; }
+section[data-testid="stSidebar"] hr { border-color: #1e293b; }
 
 /* Sidebar buttons — flat, left-aligned */
 section[data-testid="stSidebar"] .stButton > button {
     background: transparent;
     border: none;
-    color: #9ca3af;
+    color: #94a3b8;
     text-align: left;
     font-size: 0.875rem;
     font-weight: 400;
@@ -59,7 +69,7 @@ section[data-testid="stSidebar"] .stButton > button {
 }
 section[data-testid="stSidebar"] .stButton > button:hover {
     background: rgba(255,255,255,0.07);
-    color: #f3f4f6;
+    color: #f1f5f9;
     border: none;
 }
 
@@ -67,61 +77,86 @@ section[data-testid="stSidebar"] .stButton > button:hover {
 .block-container {
     padding-top: 2.5rem !important;
     padding-bottom: 5rem !important;
-    max-width: 800px;
+    max-width: 820px;
 }
 h2 {
-    font-size: 2rem !important;
+    font-size: 1.85rem !important;
     font-weight: 700 !important;
     letter-spacing: -0.03em !important;
     color: #0f172a !important;
 }
 
-/* Doc chips */
-.doc-chip {
+/* Policy chips */
+.policy-chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    background: #f1f5f9;
-    border: 1px solid #e2e8f0;
-    color: #475569;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1d4ed8;
     padding: 3px 11px;
     border-radius: 999px;
     font-size: 0.78rem;
     font-weight: 500;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+/* Connection badge */
+.badge-connected {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #dcfce7; border: 1px solid #bbf7d0;
+    color: #15803d; padding: 4px 12px; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 600;
+}
+.badge-demo {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: #fef3c7; border: 1px solid #fde68a;
+    color: #92400e; padding: 4px 12px; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 600;
 }
 
 /* Empty state */
-.empty-state { text-align: center; padding: 5rem 1rem; }
+.empty-state { text-align: center; padding: 4rem 1rem; }
 .empty-state-icon  { font-size: 2.75rem; margin-bottom: 0.75rem; line-height: 1; }
 .empty-state-title { font-size: 1.05rem; font-weight: 600; color: #1e293b; margin-bottom: 0.35rem; }
 .empty-state-sub   { font-size: 0.875rem; color: #94a3b8; }
 
-/* Answer card tweaks */
+/* Landing cards */
+.landing-card {
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.landing-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+}
+
+/* Answer card */
 [data-testid="stVerticalBlockBorderWrapper"] {
     border-radius: 12px !important;
     border-color: #e2e8f0 !important;
 }
 
-/* ── Sidebar toggle buttons ─────────────────────────────────────────────
-   Fixed to screen so they're always visible no matter the scroll position.
-   Targets both the "expand" button (sidebar closed) and "collapse" button
-   (sidebar open). ──────────────────────────────────────────────────────── */
-
-/* EXPAND button — shown when sidebar is collapsed */
+/* Sidebar toggle */
 [data-testid="collapsedControl"] {
     position: fixed !important;
     top: 50vh !important;
     left: 0 !important;
     transform: translateY(-50%) !important;
     z-index: 9999999 !important;
-    background: #ff1493 !important;
+    background: #2563eb !important;
     border-radius: 0 16px 16px 0 !important;
     width: 48px !important;
     height: 96px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    box-shadow: 4px 0 20px rgba(255,20,147,0.6) !important;
+    box-shadow: 4px 0 20px rgba(37,99,235,0.5) !important;
     cursor: pointer !important;
     border: none !important;
     padding: 0 !important;
@@ -131,114 +166,123 @@ h2 {
     border: none !important;
     width: 100% !important;
     height: 100% !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
 }
 [data-testid="collapsedControl"] svg {
-    width: 26px !important;
-    height: 26px !important;
-    fill: white !important;
-    stroke: white !important;
+    width: 26px !important; height: 26px !important;
+    fill: white !important; stroke: white !important;
 }
-[data-testid="collapsedControl"] svg * {
-    fill: white !important;
-    stroke: white !important;
-}
+[data-testid="collapsedControl"] svg * { fill: white !important; stroke: white !important; }
 
-/* COLLAPSE button — shown inside the open sidebar */
 button[data-testid="baseButton-headerNoPadding"] {
-    background: #ff1493 !important;
+    background: #2563eb !important;
     border-radius: 10px !important;
-    width: 44px !important;
-    height: 44px !important;
+    width: 44px !important; height: 44px !important;
     border: none !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: 0 2px 10px rgba(255,20,147,0.5) !important;
+    box-shadow: 0 2px 10px rgba(37,99,235,0.4) !important;
 }
 button[data-testid="baseButton-headerNoPadding"] svg {
-    width: 22px !important;
-    height: 22px !important;
-    fill: white !important;
-    stroke: white !important;
+    width: 22px !important; height: 22px !important;
+    fill: white !important; stroke: white !important;
 }
-button[data-testid="baseButton-headerNoPadding"] svg * {
-    fill: white !important;
-    stroke: white !important;
-}
+button[data-testid="baseButton-headerNoPadding"] svg * { fill: white !important; stroke: white !important; }
 </style>
 """, unsafe_allow_html=True)
 
+
 # ─── Session state ────────────────────────────────────────────────────────────
 
-def _new_chat(name: str = "New Chat") -> dict:
-    return {
-        "id": str(_uuid.uuid4()),
-        "name": name,
-        "messages": [],   # [{question, answer, sources, confidence}]
-        "doc_ids": [],    # doc UUIDs uploaded to this chat
-        "docs": {},       # {doc_id: {filename, chunk_count}}
+def _init_state():
+    defaults = {
+        "mode":          None,    # "demo" | "connected" | None (landing)
+        "sid":           None,    # Microsoft 365 session ID
+        "messages":      [],      # [{question, answer, sources, confidence}]
+        "policies_info": [],      # [{filename, policy_type}] from last sync
+        "demo_loaded":   False,
+        "upload_key":    0,
+        "last_file_id":  None,
     }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
-if "chats" not in st.session_state:
-    first = _new_chat()
-    st.session_state.chats = [first]
-    st.session_state.current_chat_id = first["id"]
+_init_state()
 
-if "upload_key" not in st.session_state:
-    st.session_state.upload_key = 0
-if "last_file_id" not in st.session_state:
-    st.session_state.last_file_id = None
-
-
-def _current_chat() -> dict:
-    for c in st.session_state.chats:
-        if c["id"] == st.session_state.current_chat_id:
-            return c
-    # Fallback: return first chat
-    return st.session_state.chats[0]
+# Handle OAuth redirect query params
+qp = st.query_params
+if qp.get("m365_connected") == "true" and qp.get("sid") and st.session_state.mode is None:
+    st.session_state.mode = "connected"
+    st.session_state.sid  = qp.get("sid")
+    st.query_params.clear()
+if qp.get("m365_error"):
+    st.error(f"Microsoft login failed: {qp.get('m365_error')}")
+    st.query_params.clear()
 
 
-# ─── Helpers ─────────────────────────────────────────────────────────────────
+# ─── API helpers ──────────────────────────────────────────────────────────────
 
-def do_upload(file) -> dict | None:
-    """Upload PDF to backend; returns {doc_id, filename, chunk_count} or None."""
+def api_get(path: str, **kwargs):
+    return httpx.get(f"{BACKEND_URL}{path}", timeout=30, **kwargs)
+
+def api_post(path: str, **kwargs):
+    return httpx.post(f"{BACKEND_URL}{path}", timeout=30, **kwargs)
+
+
+def get_auth_url() -> str | None:
+    try:
+        r = api_get("/auth-url")
+        r.raise_for_status()
+        return r.json()["url"]
+    except Exception as exc:
+        st.error(f"Could not generate Microsoft login URL: {exc}")
+        return None
+
+
+def load_demo_data() -> dict | None:
+    try:
+        r = httpx.post(f"{BACKEND_URL}/demo/load", timeout=120)
+        r.raise_for_status()
+        return r.json()
+    except Exception as exc:
+        st.error(f"Demo load failed: {exc}")
+        return None
+
+
+def sync_tenant(sid: str) -> dict | None:
+    try:
+        r = httpx.post(f"{BACKEND_URL}/sync", json={"sid": sid}, timeout=120)
+        r.raise_for_status()
+        return r.json()
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 401:
+            st.error("Session expired. Please reconnect to Microsoft 365.")
+            st.session_state.mode = None
+            st.session_state.sid  = None
+        else:
+            st.error(f"Sync failed: {exc.response.text}")
+        return None
+    except Exception as exc:
+        st.error(f"Sync failed: {exc}")
+        return None
+
+
+def do_query(question: str) -> dict | None:
     try:
         r = httpx.post(
-            f"{BACKEND_URL}/upload",
-            files={"file": (file.name, file.getvalue(), "application/pdf")},
+            f"{BACKEND_URL}/query",
+            json={"question": question, "top_k": 5},
             timeout=180,
         )
         r.raise_for_status()
         return r.json()
-    except httpx.HTTPStatusError as exc:
-        detail = exc.response.text
-        if any(k in detail.lower() for k in ("connection", "refused", "ollama")):
-            st.error("Ollama is not running. Start it with `ollama serve`.")
-        else:
-            st.error(detail)
-        return None
     except Exception as exc:
-        st.error(str(exc))
+        st.error(f"Query failed: {exc}")
         return None
-
-
-def do_delete(doc_id: str) -> bool:
-    try:
-        r = httpx.delete(f"{BACKEND_URL}/documents/{doc_id}", timeout=15)
-        r.raise_for_status()
-        return True
-    except Exception as exc:
-        st.error(str(exc))
-        return False
 
 
 def confidence_label(score: float) -> tuple[str, str]:
-    if score >= 0.8:
+    if score >= 0.75:
         return "High Confidence", "green"
-    elif score >= 0.5:
+    elif score >= 0.45:
         return "Medium Confidence", "orange"
     else:
         return "Low Confidence", "red"
@@ -247,97 +291,166 @@ def confidence_label(score: float) -> tuple[str, str]:
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
 
 with st.sidebar:
-    st.markdown("### 📄 DocMind")
-    st.caption("Local AI · No API keys needed")
+    st.markdown("### 🔷 M365Mind")
+    st.caption("Local governance intelligence\nNo data leaves your machine")
     st.divider()
 
-    # New chat
-    if st.button("＋  New Chat", use_container_width=True, key="new_chat_btn"):
-        nc = _new_chat()
-        st.session_state.chats.insert(0, nc)
-        st.session_state.current_chat_id = nc["id"]
-        st.session_state.last_file_id = None
-        st.session_state.upload_key += 1
-        st.rerun()
+    if st.session_state.mode == "demo":
+        st.markdown('<span class="badge-demo">🧪 Demo mode</span>', unsafe_allow_html=True)
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+        if st.button("↩ Back to start", use_container_width=True):
+            st.session_state.mode       = None
+            st.session_state.messages   = []
+            st.session_state.demo_loaded = False
+            st.rerun()
 
-    st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
+    elif st.session_state.mode == "connected":
+        st.markdown('<span class="badge-connected">✓ Connected to M365</span>', unsafe_allow_html=True)
+        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
 
-    # Chat list
-    for chat in st.session_state.chats:
-        is_active = chat["id"] == st.session_state.current_chat_id
-        icon = "▸ " if is_active else "   "
-        label = f"{icon}{chat['name']}"
-        if st.button(label, key=f"chat_{chat['id']}", use_container_width=True):
-            if not is_active:
-                st.session_state.current_chat_id = chat["id"]
-                st.session_state.last_file_id = None
-                st.session_state.upload_key += 1
+        if st.button("🔄 Sync Policies", use_container_width=True):
+            with st.spinner("Pulling policies from tenant…"):
+                result = sync_tenant(st.session_state.sid)
+            if result:
+                st.session_state.policies_info = [
+                    {"filename": p} for p in result.get("policies", [])
+                ]
+                st.toast(
+                    f"✓ {result['synced']} policies synced ({result['chunks']} chunks)",
+                    icon="🔷",
+                )
                 st.rerun()
 
-    # Files in current chat
-    chat = _current_chat()
-    if chat["docs"]:
+        if st.button("↩ Disconnect", use_container_width=True):
+            st.session_state.mode          = None
+            st.session_state.sid           = None
+            st.session_state.messages      = []
+            st.session_state.policies_info = []
+            st.rerun()
+
+    else:
+        st.caption("Not connected — choose a mode on the right")
+
+    if st.session_state.policies_info:
         st.divider()
-        st.caption("Files in this chat")
-        for doc_id, info in list(chat["docs"].items()):
-            c1, c2 = st.columns([5, 1])
-            c1.caption(f"📄 {info['filename']}")
-            if c2.button("✕", key=f"del_{doc_id}", help="Remove"):
-                if do_delete(doc_id):
-                    chat["doc_ids"].remove(doc_id)
-                    del chat["docs"][doc_id]
-                    st.rerun()
+        st.caption(f"Loaded policies ({len(st.session_state.policies_info)})")
+        for p in st.session_state.policies_info[:20]:
+            st.caption(f"🔹 {p['filename']}")
+        if len(st.session_state.policies_info) > 20:
+            st.caption(f"… and {len(st.session_state.policies_info) - 20} more")
 
-# ─── Main ────────────────────────────────────────────────────────────────────
+    st.divider()
+    st.caption("Query templates")
+    templates = [
+        "Which policies require MFA?",
+        "What happens when a high-risk sign-in is detected?",
+        "Which sensitivity labels encrypt content?",
+        "Are legacy authentication protocols blocked?",
+        "Which policies apply to guest or external users?",
+        "What trusted locations are defined?",
+    ]
+    for t in templates:
+        if st.button(t, key=f"tpl_{t[:20]}", use_container_width=True):
+            st.session_state["_prefill"] = t
+            st.rerun()
 
-chat = _current_chat()
 
-st.markdown("## Learn about your documents")
-st.caption(
-    "Upload a PDF and ask questions — answers are cited directly from your files "
-    "and everything runs locally on your machine."
-)
+# ─── Landing screen ───────────────────────────────────────────────────────────
 
-# ─── Chat history ─────────────────────────────────────────────────────────────
+if st.session_state.mode is None:
+    st.markdown("## 🔷 M365Mind")
+    st.markdown(
+        "Query your Microsoft 365 governance policies using AI — "
+        "**everything runs locally, nothing leaves your machine.**"
+    )
+    st.markdown("---")
+    st.markdown("#### Choose how to get started")
 
-if not chat["messages"]:
-    if not chat["docs"]:
+    col_demo, col_connect = st.columns(2, gap="large")
+
+    with col_demo:
+        st.markdown("##### 🧪 Try the Demo")
+        st.markdown(
+            "Explore with realistic sample policies — Conditional Access, "
+            "Sensitivity Labels, Named Locations. No Microsoft account needed."
+        )
+        if st.button("Launch Demo", type="secondary", use_container_width=True):
+            with st.spinner("Loading sample policies…"):
+                result = load_demo_data()
+            if result:
+                st.session_state.mode = "demo"
+                st.session_state.demo_loaded = True
+                st.session_state.policies_info = [
+                    {"filename": f"Demo policies ({result['loaded']} loaded)"}
+                ]
+                st.rerun()
+
+    with col_connect:
+        st.markdown("##### 🏢 Connect to Microsoft 365")
+        st.markdown(
+            "Sign in with your work account to query your **actual tenant** — "
+            "Conditional Access policies, Sensitivity Labels, Named Locations."
+        )
+        if st.button("Sign in with Microsoft", type="primary", use_container_width=True):
+            url = get_auth_url()
+            if url:
+                st.markdown(
+                    f'<meta http-equiv="refresh" content="0; url={url}">',
+                    unsafe_allow_html=True,
+                )
+                st.info("Redirecting to Microsoft login…")
+
+    st.markdown("---")
+    st.markdown(
+        "<small>Powered by Phi-3.5-mini (local) · nomic-embed-text · Hybrid RAG · "
+        "No telemetry · No cloud calls</small>",
+        unsafe_allow_html=True,
+    )
+    st.stop()
+
+
+# ─── Main query interface ─────────────────────────────────────────────────────
+
+mode_label = "Demo" if st.session_state.mode == "demo" else "Your Tenant"
+st.markdown(f"## M365Mind — {mode_label}")
+
+if st.session_state.mode == "demo":
+    st.caption(
+        "You're exploring sample M365 policies. "
+        "Connect your account in the sidebar to query your real tenant."
+    )
+elif st.session_state.mode == "connected" and not st.session_state.policies_info:
+    st.info("Click **Sync Policies** in the sidebar to pull your tenant's policies.")
+
+# Policy chips
+if st.session_state.policies_info:
+    chips = "".join(
+        f'<span class="policy-chip">🔹 {p["filename"]}</span>'
+        for p in st.session_state.policies_info[:8]
+    )
+    if len(st.session_state.policies_info) > 8:
+        chips += f'<span class="policy-chip">+{len(st.session_state.policies_info) - 8} more</span>'
+    st.markdown(f"<div style='margin-bottom:1rem'>{chips}</div>", unsafe_allow_html=True)
+
+# ─── Conversation history ──────────────────────────────────────────────────────
+
+if not st.session_state.messages:
+    if not st.session_state.policies_info:
         st.markdown("""
 <div class="empty-state">
-  <div class="empty-state-icon">📂</div>
-  <div class="empty-state-title">Attach a PDF to get started</div>
-  <div class="empty-state-sub">Use the upload area below — files stay on your machine.</div>
+  <div class="empty-state-icon">🔷</div>
+  <div class="empty-state-title">No policies loaded yet</div>
+  <div class="empty-state-sub">Use the sidebar to sync your tenant or switch to demo mode.</div>
 </div>""", unsafe_allow_html=True)
     else:
-        # Show loaded files as chips, then prompt
-        chips = "".join(
-            f'<span class="doc-chip">📄 {i["filename"]}</span> '
-            for i in chat["docs"].values()
-        )
-        st.markdown(
-            f"<div style='margin-bottom:1rem'>{chips}</div>",
-            unsafe_allow_html=True,
-        )
         st.markdown("""
-<div class="empty-state" style="padding:2rem 1rem">
+<div class="empty-state" style="padding:2.5rem 1rem">
   <div class="empty-state-icon">💬</div>
-  <div class="empty-state-title">Ready — ask your first question</div>
-  <div class="empty-state-sub">Type in the box below.</div>
+  <div class="empty-state-title">Ask about your governance policies</div>
+  <div class="empty-state-sub">Try a template from the sidebar or type your own question below.</div>
 </div>""", unsafe_allow_html=True)
-
 else:
-    # Show loaded files as small chips above the conversation
-    if chat["docs"]:
-        chips = "".join(
-            f'<span class="doc-chip">📄 {i["filename"]}</span> '
-            for i in chat["docs"].values()
-        )
-        st.markdown(
-            f"<div style='margin-bottom:1.25rem'>{chips}</div>",
-            unsafe_allow_html=True,
-        )
-
-    for item in chat["messages"]:
+    for item in st.session_state.messages:
         label, color = confidence_label(item["confidence"])
 
         seen: set = set()
@@ -353,73 +466,46 @@ else:
             st.markdown(item["answer"])
             bl, br = st.columns([3, 1])
             if unique_sources:
-                parts = [f"`{s['filename']}` p. {s['page_number']}" for s in unique_sources]
+                parts = [
+                    f"`{s['filename']}` §{s['page_number']}"
+                    for s in unique_sources
+                ]
                 bl.markdown("**Sources:** " + " · ".join(parts))
             br.markdown(f":{color}[**{label}**]")
 
-# ─── Input area ──────────────────────────────────────────────────────────────
+# ─── Input ────────────────────────────────────────────────────────────────────
 
 st.markdown("---")
 
-# File uploader — auto-uploads when a new file is detected
-attached = st.file_uploader(
-    "📎 Attach a PDF to this chat",
-    type=["pdf"],
-    key=f"uploader_{st.session_state.upload_key}",
-)
+# Handle template prefill
+prefill = st.session_state.pop("_prefill", "")
 
-if attached is not None:
-    file_id = f"{attached.name}_{attached.size}"
-    if file_id != st.session_state.last_file_id:
-        st.session_state.last_file_id = file_id
-        with st.spinner("Indexing PDF…"):
-            result = do_upload(attached)
-        if result:
-            chat["doc_ids"].append(result["doc_id"])
-            chat["docs"][result["doc_id"]] = {
-                "filename": result["filename"],
-                "chunk_count": result["chunk_count"],
-            }
-            # Auto-name the chat from the first document
-            if chat["name"] == "New Chat":
-                name = result["filename"].rsplit(".", 1)[0][:36]
-                chat["name"] = name
-            st.toast(f"✓ {result['filename']} — {result['chunk_count']} chunks", icon="📄")
-            st.session_state.upload_key += 1
-            st.rerun()
+has_policies = bool(st.session_state.policies_info)
 
-# Question form — st.form stops keystroke reruns
 with st.form("question_form", clear_on_submit=True):
     qc, bc = st.columns([5, 1])
     question = qc.text_input(
         "question",
-        placeholder="Ask a question about your documents…",
+        value=prefill,
+        placeholder="Ask about your M365 governance policies…",
         label_visibility="collapsed",
+        disabled=not has_policies,
     )
-    submitted = bc.form_submit_button("Ask →", type="primary", use_container_width=True)
+    submitted = bc.form_submit_button(
+        "Ask →", type="primary", use_container_width=True, disabled=not has_policies
+    )
 
-if submitted:
-    if not question.strip():
-        st.warning("Please enter a question.")
-    elif not chat["doc_ids"]:
-        st.warning("Attach a PDF first using the upload area above.")
-    else:
-        with st.spinner("Thinking…"):
-            try:
-                r = httpx.post(
-                    f"{BACKEND_URL}/query",
-                    json={"question": question, "top_k": 5, "doc_ids": chat["doc_ids"]},
-                    timeout=120,
-                )
-                r.raise_for_status()
-                result = r.json()
-                chat["messages"].append({"question": question, **result})
-                st.rerun()
-            except httpx.HTTPStatusError as exc:
-                detail = exc.response.text
-                if any(k in detail.lower() for k in ("connection", "refused", "ollama")):
-                    st.error("Ollama is not running. Start it with `ollama serve`.")
-                else:
-                    st.error(f"Error: {detail}")
-            except Exception as exc:
-                st.error(f"Error: {exc}")
+if not has_policies:
+    st.caption("Sync policies or load the demo to start asking questions.")
+
+if submitted and question.strip():
+    with st.spinner("Analysing policies…"):
+        result = do_query(question.strip())
+    if result:
+        st.session_state.messages.append({"question": question.strip(), **result})
+        st.rerun()
+
+if st.session_state.messages:
+    if st.button("Clear conversation", use_container_width=False):
+        st.session_state.messages = []
+        st.rerun()

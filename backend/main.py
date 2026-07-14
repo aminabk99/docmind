@@ -1,12 +1,13 @@
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from backend.ingest import delete_document, get_chroma_collection, ingest_pdf
 from backend.retrieval import answer_question
 from monitoring.metrics import compute_metrics
 
-app = FastAPI(title="DocMind API", version="2.0.0")
+app = FastAPI(title="M365Mind API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -113,3 +114,154 @@ async def get_metrics(last_n: int = 1000):
         return compute_metrics(last_n=last_n)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Metrics computation failed: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# M365 AUTH  —  GET /auth-url
+# ---------------------------------------------------------------------------
+
+@app.get("/auth-url")
+async def get_auth_url():
+    """Return the Microsoft OAuth2 login URL."""
+    try:
+        from backend.auth import get_auth_url as _get_auth_url
+        url = _get_auth_url()
+        return {"url": url}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Auth URL generation failed: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# M365 AUTH  —  GET /callback  (Microsoft redirects here after login)
+# ---------------------------------------------------------------------------
+
+@app.get("/callback")
+async def oauth_callback(code: str = Query(...), state: str = Query(default="")):
+    """
+    Exchange the authorisation code for an access token.
+    Redirects to the Streamlit frontend with the session ID as a query param.
+    """
+    try:
+        from backend.auth import exchange_code
+        session_id = exchange_code(code)
+        redirect_url = f"http://localhost:8501?m365_connected=true&sid={session_id}"
+        return RedirectResponse(url=redirect_url)
+    except Exception as exc:
+        error_url = f"http://localhost:8501?m365_error={str(exc)[:200]}"
+        return RedirectResponse(url=error_url)
+
+
+# ---------------------------------------------------------------------------
+# M365 AUTH  —  GET /auth-status
+# ---------------------------------------------------------------------------
+
+@app.get("/auth-status")
+async def auth_status(sid: str = Query(...)):
+    """Return whether a session has a valid token."""
+    try:
+        from backend.auth import is_connected
+        return {"connected": is_connected(sid)}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+# ---------------------------------------------------------------------------
+# M365 SYNC  —  POST /sync
+# ---------------------------------------------------------------------------
+
+class SyncRequest(BaseModel):
+    sid: str   # session ID returned by /callback
+
+@app.post("/sync")
+async def sync_policies(request: SyncRequest):
+    """
+    Pull all governance policies from the tenant and ingest them.
+    Requires a valid session (user must have completed OAuth login first).
+    """
+    try:
+        from backend.auth import get_token
+        from backend.graph_client import pull_all
+        from backend.policy_formatter import format_policy
+        from backend.ingest import ingest_text, get_chroma_collection, delete_document
+
+        token = get_token(request.sid)
+        if not token:
+            raise HTTPException(status_code=401, detail="Session not found or expired. Please reconnect.")
+
+        # Remove previously synced real-tenant data before re-syncing
+        collection = get_chroma_collection()
+        existing = collection.get(where={"source_type": "graph_api"}, include=[], limit=10_000)
+        for doc_id_chunk in existing["ids"]:
+            # ids are in format "doc_id_chunkindex" — extract base doc_id
+            pass
+        # Cleaner approach: delete all graph_api chunks directly
+        if existing["ids"]:
+            collection.delete(ids=existing["ids"])
+            from backend.bm25_store import get_bm25_store
+            get_bm25_store().rebuild()
+
+        raw = pull_all(token)
+
+        _TYPE_MAP = {
+            "conditional_access": "conditional_access",
+            "named_locations":    "named_location",
+            "sensitivity_labels": "sensitivity_label",
+        }
+
+        results: list[dict] = []
+        for section_key, policy_type in _TYPE_MAP.items():
+            for item in raw.get(section_key, []):
+                display_name, text = format_policy(policy_type, item)
+                if not text.strip():
+                    continue
+                doc_id = f"graph_{policy_type}_{item.get('id', '')}"
+                res = ingest_text(
+                    text=text,
+                    display_name=display_name,
+                    source_type="graph_api",
+                    policy_type=policy_type,
+                    doc_id=doc_id,
+                )
+                results.append(res)
+
+        total_chunks = sum(r["chunk_count"] for r in results)
+        return {
+            "synced": len(results),
+            "chunks": total_chunks,
+            "policies": [r["filename"] for r in results],
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# DEMO  —  POST /demo/load
+# ---------------------------------------------------------------------------
+
+@app.post("/demo/load")
+async def load_demo():
+    """Load pre-built sample M365 policies for the demo mode."""
+    try:
+        from demo_data.load_demo import load_demo as _load_demo
+        result = _load_demo()
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Demo load failed: {exc}") from exc
+
+
+# ---------------------------------------------------------------------------
+# DEMO  —  GET /demo/status
+# ---------------------------------------------------------------------------
+
+@app.get("/demo/status")
+async def demo_status():
+    """Check whether demo data is currently loaded."""
+    try:
+        collection = get_chroma_collection()
+        results = collection.get(where={"source_type": "demo"}, include=[], limit=1)
+        loaded = len(results["ids"]) > 0
+        return {"demo_loaded": loaded}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

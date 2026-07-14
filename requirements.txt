@@ -2,20 +2,24 @@
 fastapi>=0.109.0
 uvicorn[standard]>=0.27.0
 
-# --- LlamaIndex ---
+# --- LlamaIndex (document loading + chunking only — no Ollama) ---
 llama-index>=0.10.0
 llama-index-readers-file>=0.1.0
-llama-index-llms-ollama>=0.1.0
-llama-index-embeddings-ollama>=0.1.0
+
+# --- Local LLM + embeddings (replaces Ollama) ---
+transformers>=4.40.0
+accelerate>=0.29.0
+torch>=2.2.0
+sentence-transformers>=2.7.0
+
+# --- Microsoft 365 auth ---
+msal>=1.28.0
 
 # --- Vector store ---
 chromadb>=0.4.22
 
 # --- Sparse retrieval (BM25) ---
 rank-bm25>=0.2.2
-
-# --- Cross-encoder reranking ---
-sentence-transformers>=2.7.0
 
 # --- Frontend ---
 streamlit>=1.31.0

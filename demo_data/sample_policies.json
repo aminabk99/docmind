@@ -1,0 +1,384 @@
+{
+  "conditional_access": [
+    {
+      "id": "demo-ca-001",
+      "displayName": "Require MFA for All Users",
+      "state": "enabled",
+      "createdDateTime": "2024-01-15T09:00:00Z",
+      "modifiedDateTime": "2024-11-01T14:30:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": ["All"],
+          "excludeUsers": [],
+          "includeGroups": [],
+          "excludeGroups": ["demo-group-breakglass"],
+          "includeRoles": [],
+          "excludeRoles": []
+        },
+        "locations": {
+          "includeLocations": ["All"],
+          "excludeLocations": ["AllTrusted"]
+        },
+        "platforms": null,
+        "clientAppTypes": ["browser", "mobileAppsAndDesktopClients"],
+        "signInRiskLevels": [],
+        "userRiskLevels": []
+      },
+      "grantControls": {
+        "operator": "OR",
+        "builtInControls": ["mfa"],
+        "customAuthenticationFactors": []
+      },
+      "sessionControls": null
+    },
+    {
+      "id": "demo-ca-002",
+      "displayName": "Block Legacy Authentication",
+      "state": "enabled",
+      "createdDateTime": "2024-02-10T11:00:00Z",
+      "modifiedDateTime": "2024-10-05T09:15:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": ["All"],
+          "excludeUsers": [],
+          "includeGroups": [],
+          "excludeGroups": ["demo-group-breakglass"],
+          "includeRoles": [],
+          "excludeRoles": []
+        },
+        "locations": null,
+        "platforms": null,
+        "clientAppTypes": ["exchangeActiveSync", "other"],
+        "signInRiskLevels": [],
+        "userRiskLevels": []
+      },
+      "grantControls": {
+        "operator": "OR",
+        "builtInControls": ["block"],
+        "customAuthenticationFactors": []
+      },
+      "sessionControls": null
+    },
+    {
+      "id": "demo-ca-003",
+      "displayName": "Require Compliant Device for Office 365",
+      "state": "enabled",
+      "createdDateTime": "2024-03-01T08:00:00Z",
+      "modifiedDateTime": "2024-09-20T16:45:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": ["All"],
+          "excludeUsers": [],
+          "includeGroups": [],
+          "excludeGroups": ["demo-group-breakglass", "demo-group-byod-exception"],
+          "includeRoles": [],
+          "excludeRoles": []
+        },
+        "locations": {
+          "includeLocations": ["All"],
+          "excludeLocations": []
+        },
+        "platforms": {
+          "includePlatforms": ["windows", "macOS"],
+          "excludePlatforms": []
+        },
+        "clientAppTypes": ["browser", "mobileAppsAndDesktopClients"],
+        "signInRiskLevels": [],
+        "userRiskLevels": []
+      },
+      "grantControls": {
+        "operator": "OR",
+        "builtInControls": ["compliantDevice", "domainJoinedDevice"],
+        "customAuthenticationFactors": []
+      },
+      "sessionControls": null
+    },
+    {
+      "id": "demo-ca-004",
+      "displayName": "Block High-Risk Sign-Ins",
+      "state": "enabled",
+      "createdDateTime": "2024-04-12T13:00:00Z",
+      "modifiedDateTime": "2024-11-10T10:00:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": ["All"],
+          "excludeUsers": [],
+          "includeGroups": [],
+          "excludeGroups": ["demo-group-breakglass"],
+          "includeRoles": [],
+          "excludeRoles": []
+        },
+        "locations": null,
+        "platforms": null,
+        "clientAppTypes": ["all"],
+        "signInRiskLevels": ["high"],
+        "userRiskLevels": []
+      },
+      "grantControls": {
+        "operator": "OR",
+        "builtInControls": ["block"],
+        "customAuthenticationFactors": []
+      },
+      "sessionControls": null
+    },
+    {
+      "id": "demo-ca-005",
+      "displayName": "Require MFA for Global Administrators",
+      "state": "enabled",
+      "createdDateTime": "2024-01-15T09:30:00Z",
+      "modifiedDateTime": "2024-08-22T11:20:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": [],
+          "excludeUsers": ["demo-breakglass-01", "demo-breakglass-02"],
+          "includeGroups": [],
+          "excludeGroups": [],
+          "includeRoles": ["62e90394-69f5-4237-9190-012177145e10"],
+          "excludeRoles": []
+        },
+        "locations": null,
+        "platforms": null,
+        "clientAppTypes": ["browser", "mobileAppsAndDesktopClients"],
+        "signInRiskLevels": [],
+        "userRiskLevels": []
+      },
+      "grantControls": {
+        "operator": "AND",
+        "builtInControls": ["mfa", "compliantDevice"],
+        "customAuthenticationFactors": []
+      },
+      "sessionControls": {
+        "signInFrequency": {
+          "isEnabled": true,
+          "type": "hours",
+          "value": 4
+        },
+        "persistentBrowser": null,
+        "cloudAppSecurity": null
+      }
+    },
+    {
+      "id": "demo-ca-006",
+      "displayName": "Restrict Access from High-Risk Countries",
+      "state": "enabled",
+      "createdDateTime": "2024-05-20T10:00:00Z",
+      "modifiedDateTime": "2024-10-30T09:00:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": ["All"],
+          "excludeUsers": [],
+          "includeGroups": [],
+          "excludeGroups": ["demo-group-breakglass", "demo-group-travellers"],
+          "includeRoles": [],
+          "excludeRoles": []
+        },
+        "locations": {
+          "includeLocations": ["demo-loc-high-risk-countries"],
+          "excludeLocations": []
+        },
+        "platforms": null,
+        "clientAppTypes": ["all"],
+        "signInRiskLevels": [],
+        "userRiskLevels": []
+      },
+      "grantControls": {
+        "operator": "OR",
+        "builtInControls": ["block"],
+        "customAuthenticationFactors": []
+      },
+      "sessionControls": null
+    },
+    {
+      "id": "demo-ca-007",
+      "displayName": "Require App Protection Policy for Mobile",
+      "state": "enabled",
+      "createdDateTime": "2024-06-01T08:00:00Z",
+      "modifiedDateTime": "2024-11-05T14:00:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": ["All"],
+          "excludeUsers": [],
+          "includeGroups": [],
+          "excludeGroups": ["demo-group-breakglass"],
+          "includeRoles": [],
+          "excludeRoles": []
+        },
+        "locations": null,
+        "platforms": {
+          "includePlatforms": ["iOS", "android"],
+          "excludePlatforms": []
+        },
+        "clientAppTypes": ["mobileAppsAndDesktopClients"],
+        "signInRiskLevels": [],
+        "userRiskLevels": []
+      },
+      "grantControls": {
+        "operator": "OR",
+        "builtInControls": ["compliantApplication"],
+        "customAuthenticationFactors": []
+      },
+      "sessionControls": null
+    },
+    {
+      "id": "demo-ca-008",
+      "displayName": "Enforce Sign-In Frequency for External Users",
+      "state": "enabled",
+      "createdDateTime": "2024-07-15T11:00:00Z",
+      "modifiedDateTime": "2024-11-12T09:30:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": ["GuestsOrExternalUsers"],
+          "excludeUsers": [],
+          "includeGroups": [],
+          "excludeGroups": [],
+          "includeRoles": [],
+          "excludeRoles": []
+        },
+        "locations": null,
+        "platforms": null,
+        "clientAppTypes": ["browser", "mobileAppsAndDesktopClients"],
+        "signInRiskLevels": [],
+        "userRiskLevels": []
+      },
+      "grantControls": null,
+      "sessionControls": {
+        "signInFrequency": {
+          "isEnabled": true,
+          "type": "hours",
+          "value": 8
+        },
+        "persistentBrowser": {
+          "isEnabled": true,
+          "mode": "never"
+        },
+        "cloudAppSecurity": null
+      }
+    }
+  ],
+  "named_locations": [
+    {
+      "id": "demo-loc-001",
+      "@odata.type": "#microsoft.graph.ipNamedLocation",
+      "displayName": "Trusted Corporate Offices",
+      "isTrusted": true,
+      "createdDateTime": "2024-01-10T08:00:00Z",
+      "modifiedDateTime": "2024-09-01T12:00:00Z",
+      "ipRanges": [
+        { "cidrAddress": "203.0.113.0/24" },
+        { "cidrAddress": "198.51.100.0/24" },
+        { "cidrAddress": "192.0.2.0/28" }
+      ]
+    },
+    {
+      "id": "demo-loc-002",
+      "@odata.type": "#microsoft.graph.ipNamedLocation",
+      "displayName": "VPN Exit Nodes",
+      "isTrusted": true,
+      "createdDateTime": "2024-02-05T09:00:00Z",
+      "modifiedDateTime": "2024-10-15T11:00:00Z",
+      "ipRanges": [
+        { "cidrAddress": "198.51.101.0/27" },
+        { "cidrAddress": "198.51.102.0/27" }
+      ]
+    },
+    {
+      "id": "demo-loc-high-risk-countries",
+      "@odata.type": "#microsoft.graph.countryNamedLocation",
+      "displayName": "High-Risk Countries Blocklist",
+      "isTrusted": false,
+      "createdDateTime": "2024-05-18T14:00:00Z",
+      "modifiedDateTime": "2024-11-01T10:00:00Z",
+      "countriesAndRegions": ["KP", "IR", "CU", "SY"],
+      "includeUnknownCountriesAndRegions": true
+    }
+  ],
+  "sensitivity_labels": [
+    {
+      "id": "demo-label-001",
+      "name": "Public",
+      "description": "Information that can be freely shared with anyone, inside or outside the organization.",
+      "tooltip": "Use for non-sensitive content intended for public audiences.",
+      "sensitivity": 0,
+      "isActive": true,
+      "isParent": false,
+      "contentMarkings": [],
+      "encryption": null
+    },
+    {
+      "id": "demo-label-002",
+      "name": "General",
+      "description": "Internal business information that is not sensitive but is not intended for public release.",
+      "tooltip": "Default label for routine internal communications and documents.",
+      "sensitivity": 1,
+      "isActive": true,
+      "isParent": false,
+      "contentMarkings": [
+        { "@odata.type": "#microsoft.graph.headerFooterMarkingTemplate" }
+      ],
+      "encryption": null
+    },
+    {
+      "id": "demo-label-003",
+      "name": "Confidential",
+      "description": "Sensitive business data that could cause damage if disclosed without authorisation.",
+      "tooltip": "Use for HR records, financial data, legal documents, and internal strategy.",
+      "sensitivity": 2,
+      "isActive": true,
+      "isParent": true,
+      "contentMarkings": [
+        { "@odata.type": "#microsoft.graph.headerFooterMarkingTemplate" },
+        { "@odata.type": "#microsoft.graph.watermarkingTemplate" }
+      ],
+      "encryption": {
+        "templateId": "demo-template-confidential"
+      }
+    },
+    {
+      "id": "demo-label-004",
+      "name": "Confidential \\ All Employees",
+      "description": "Confidential data accessible to all full-time employees with a valid corporate account.",
+      "tooltip": "Encrypts content so only employees with @contoso.com addresses can read it.",
+      "sensitivity": 3,
+      "isActive": true,
+      "isParent": false,
+      "contentMarkings": [
+        { "@odata.type": "#microsoft.graph.headerFooterMarkingTemplate" }
+      ],
+      "encryption": {
+        "templateId": "demo-template-confidential-allemployees"
+      }
+    },
+    {
+      "id": "demo-label-005",
+      "name": "Highly Confidential",
+      "description": "Extremely sensitive data — breach could cause serious harm to the organisation, its customers, or partners.",
+      "tooltip": "Use for PII, payment card data, M&A details, and board-level communications.",
+      "sensitivity": 4,
+      "isActive": true,
+      "isParent": true,
+      "contentMarkings": [
+        { "@odata.type": "#microsoft.graph.headerFooterMarkingTemplate" },
+        { "@odata.type": "#microsoft.graph.watermarkingTemplate" }
+      ],
+      "encryption": {
+        "templateId": "demo-template-highlyconfidential"
+      }
+    },
+    {
+      "id": "demo-label-006",
+      "name": "Highly Confidential \\ Specific People",
+      "description": "Access restricted to named individuals only. Applied manually by the document owner.",
+      "tooltip": "Encrypt and restrict to a specific list of recipients.",
+      "sensitivity": 5,
+      "isActive": true,
+      "isParent": false,
+      "contentMarkings": [
+        { "@odata.type": "#microsoft.graph.headerFooterMarkingTemplate" },
+        { "@odata.type": "#microsoft.graph.watermarkingTemplate" }
+      ],
+      "encryption": {
+        "templateId": "demo-template-highlyconfidential-specific"
+      }
+    }
+  ]
+}
