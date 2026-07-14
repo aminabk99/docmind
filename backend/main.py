@@ -1,7 +1,8 @@
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
+from pathlib import Path
 
 from backend.ingest import delete_document, get_chroma_collection, ingest_pdf
 from backend.retrieval import answer_question
@@ -101,6 +102,46 @@ async def delete_document_endpoint(doc_id: str):
 
 
 # ---------------------------------------------------------------------------
+# MODEL  —  GET /model/status  +  POST /model/warm
+# ---------------------------------------------------------------------------
+
+_model_warming = False
+
+def _is_model_cached() -> bool:
+    """Check HuggingFace cache without triggering a download."""
+    from backend.generation import MODEL_ID
+    cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
+    model_dir = "models--" + MODEL_ID.replace("/", "--")
+    return (cache_dir / model_dir / "snapshots").exists()
+
+
+def _warm_model():
+    global _model_warming
+    try:
+        from backend.generation import _get_pipeline
+        _get_pipeline()
+    finally:
+        _model_warming = False
+
+
+@app.get("/model/status")
+async def model_status():
+    return {"ready": _is_model_cached(), "warming": _model_warming}
+
+
+@app.post("/model/warm")
+async def warm_model(background_tasks: BackgroundTasks):
+    global _model_warming
+    if not _is_model_cached() and not _model_warming:
+        _model_warming = True
+        background_tasks.add_task(_warm_model)
+        return {"status": "downloading"}
+    if _model_warming:
+        return {"status": "already_downloading"}
+    return {"status": "already_ready"}
+
+
+# ---------------------------------------------------------------------------
 # GET /metrics
 # ---------------------------------------------------------------------------
 
@@ -123,6 +164,12 @@ async def get_metrics(last_n: int = 1000):
 @app.get("/auth-url")
 async def get_auth_url():
     """Return the Microsoft OAuth2 login URL."""
+    from backend.config import AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_CLIENT_SECRET
+    if not AZURE_CLIENT_ID or not AZURE_TENANT_ID or not AZURE_CLIENT_SECRET:
+        raise HTTPException(
+            status_code=400,
+            detail="Azure credentials not configured. Add AZURE_CLIENT_ID, AZURE_TENANT_ID, and AZURE_CLIENT_SECRET to your .env file."
+        )
     try:
         from backend.auth import get_auth_url as _get_auth_url
         url = _get_auth_url()

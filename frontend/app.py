@@ -230,6 +230,9 @@ def api_post(path: str, **kwargs):
 def get_auth_url() -> str | None:
     try:
         r = api_get("/auth-url")
+        if r.status_code == 400:
+            st.error("Azure credentials not configured. Add AZURE_CLIENT_ID, AZURE_TENANT_ID, and AZURE_CLIENT_SECRET to your .env file first.")
+            return None
         r.raise_for_status()
         return r.json()["url"]
     except Exception as exc:
@@ -377,12 +380,13 @@ if st.session_state.mode is None:
     col_demo, col_connect = st.columns(2, gap="large")
 
     with col_demo:
-        st.markdown("##### 🧪 Try the Demo")
+        st.markdown("##### ⚡ Try it in 2 minutes")
         st.markdown(
-            "Explore with realistic sample policies — Conditional Access, "
-            "Sensitivity Labels, Named Locations. No Microsoft account needed."
+            "Jump straight in with realistic sample M365 policies — "
+            "Conditional Access, Sensitivity Labels, Named Locations. "
+            "No account, no setup, no waiting."
         )
-        if st.button("Launch Demo", type="secondary", use_container_width=True):
+        if st.button("Launch Demo", type="primary", use_container_width=True):
             if demo_already_loaded():
                 st.session_state.mode = "demo"
                 st.session_state.demo_loaded = True
@@ -400,12 +404,12 @@ if st.session_state.mode is None:
                     st.rerun()
 
     with col_connect:
-        st.markdown("##### 🏢 Connect to Microsoft 365")
+        st.markdown("##### 🏢 Connect your own tenant")
         st.markdown(
-            "Sign in with your work account to query your **actual tenant** — "
-            "Conditional Access policies, Sensitivity Labels, Named Locations."
+            "Sign in with your Microsoft 365 work account to query your "
+            "**real tenant's** policies — Conditional Access, Sensitivity Labels, Named Locations."
         )
-        if st.button("Sign in with Microsoft", type="primary", use_container_width=True):
+        if st.button("Sign in with Microsoft", type="secondary", use_container_width=True):
             url = get_auth_url()
             if url:
                 st.markdown(
@@ -415,8 +419,33 @@ if st.session_state.mode is None:
                 st.info("Redirecting to Microsoft login…")
 
     st.markdown("---")
+
+    # ── Model download section ────────────────────────────────────────────────
+    try:
+        status = api_get("/model/status").json()
+        model_ready   = status.get("ready", False)
+        model_warming = status.get("warming", False)
+    except Exception:
+        model_ready   = False
+        model_warming = False
+
+    if model_ready:
+        st.success("AI model ready — first query will be fast.")
+    elif model_warming:
+        st.info("Downloading AI model… this takes a few minutes. You can launch the demo while you wait.")
+        time.sleep(3)
+        st.rerun()
+    else:
+        st.warning(
+            "**AI model not downloaded yet.** Download it now so your first question "
+            "answers instantly (~3 GB, 3-5 min on a typical connection)."
+        )
+        if st.button("Download AI model now", type="secondary"):
+            httpx.post(f"{BACKEND_URL}/model/warm", timeout=10)
+            st.rerun()
+
     st.markdown(
-        "<small>Powered by Phi-3.5-mini (local) · nomic-embed-text · Hybrid RAG · "
+        "<small>Powered by Qwen2.5-1.5B (local) · nomic-embed-text · Hybrid RAG · "
         "No telemetry · No cloud calls</small>",
         unsafe_allow_html=True,
     )
@@ -426,27 +455,60 @@ if st.session_state.mode is None:
 # ─── Main query interface ─────────────────────────────────────────────────────
 
 mode_label = "Demo" if st.session_state.mode == "demo" else "Your Tenant"
+
+# ── Back button ───────────────────────────────────────────────────────────────
+if st.button("← Home", key="back_home"):
+    st.session_state.mode          = None
+    st.session_state.sid           = None
+    st.session_state.messages      = []
+    st.session_state.policies_info = []
+    st.session_state.demo_loaded   = False
+    st.rerun()
+
 st.markdown(f"## M365Mind — {mode_label}")
 
 if st.session_state.mode == "demo":
-    st.caption(
-        "You're exploring sample M365 policies. "
-        "Connect your account in the sidebar to query your real tenant."
-    )
+    st.caption("You're exploring sample M365 policies. No account needed.")
 elif st.session_state.mode == "connected" and not st.session_state.policies_info:
     st.info("Click **Sync Policies** in the sidebar to pull your tenant's policies.")
 
-# Policy chips
+# ── Loaded policies expander ──────────────────────────────────────────────────
 if st.session_state.policies_info:
-    chips = "".join(
-        f'<span class="policy-chip">🔹 {p["filename"]}</span>'
-        for p in st.session_state.policies_info[:8]
-    )
-    if len(st.session_state.policies_info) > 8:
-        chips += f'<span class="policy-chip">+{len(st.session_state.policies_info) - 8} more</span>'
-    st.markdown(f"<div style='margin-bottom:1rem'>{chips}</div>", unsafe_allow_html=True)
+    try:
+        docs_resp = httpx.get(f"{BACKEND_URL}/documents", timeout=10)
+        docs = docs_resp.json() if docs_resp.status_code == 200 else []
+    except Exception:
+        docs = []
 
-# ─── Conversation history ──────────────────────────────────────────────────────
+    with st.expander(f"📋 View loaded policies ({len(docs)})"):
+        if docs:
+            ca     = [d for d in docs if "conditional" in d.get("filename","").lower() or "policy" in d.get("filename","").lower() or "mfa" in d.get("filename","").lower() or "block" in d.get("filename","").lower() or "compliant" in d.get("filename","").lower() or "risk" in d.get("filename","").lower() or "admin" in d.get("filename","").lower() or "mobile" in d.get("filename","").lower() or "external" in d.get("filename","").lower() or "country" in d.get("filename","").lower() or "restrict" in d.get("filename","").lower() or "legacy" in d.get("filename","").lower() or "frequency" in d.get("filename","").lower() or "require" in d.get("filename","").lower()]
+            labels = [d for d in docs if "confidential" in d.get("filename","").lower() or "label" in d.get("filename","").lower() or "public" in d.get("filename","").lower() or "general" in d.get("filename","").lower() or "highly" in d.get("filename","").lower() or "sensitivity" in d.get("filename","").lower()]
+            locs   = [d for d in docs if "location" in d.get("filename","").lower() or "office" in d.get("filename","").lower() or "vpn" in d.get("filename","").lower() or "country" in d.get("filename","").lower() or "trusted" in d.get("filename","").lower()]
+
+            # Simple grouping — show all docs in clean list
+            st.markdown("**Conditional Access Policies**")
+            for d in docs:
+                name = d.get("filename", "")
+                if any(k in name.lower() for k in ["require", "block", "compliant", "risk", "admin", "mobile", "external", "legacy", "frequency", "restrict"]):
+                    st.markdown(f"&nbsp;&nbsp;— {name}")
+
+            st.markdown("**Named Locations**")
+            for d in docs:
+                name = d.get("filename", "")
+                if any(k in name.lower() for k in ["office", "vpn", "location", "countries", "trusted", "high-risk"]):
+                    st.markdown(f"&nbsp;&nbsp;— {name}")
+
+            st.markdown("**Sensitivity Labels**")
+            for d in docs:
+                name = d.get("filename", "")
+                if any(k in name.lower() for k in ["public", "general", "confidential", "highly"]):
+                    st.markdown(f"&nbsp;&nbsp;— {name}")
+
+            st.markdown("---")
+            st.caption("Try asking about any of these policies below.")
+
+# ─── Conversation history ─────────────────────────────────────────────────────
 
 if not st.session_state.messages:
     if not st.session_state.policies_info:
@@ -454,14 +516,14 @@ if not st.session_state.messages:
 <div class="empty-state">
   <div class="empty-state-icon">🔷</div>
   <div class="empty-state-title">No policies loaded yet</div>
-  <div class="empty-state-sub">Use the sidebar to sync your tenant or switch to demo mode.</div>
+  <div class="empty-state-sub">Go back home and launch the demo or connect your tenant.</div>
 </div>""", unsafe_allow_html=True)
     else:
         st.markdown("""
 <div class="empty-state" style="padding:2.5rem 1rem">
   <div class="empty-state-icon">💬</div>
   <div class="empty-state-title">Ask about your governance policies</div>
-  <div class="empty-state-sub">Try a template from the sidebar or type your own question below.</div>
+  <div class="empty-state-sub">Type a question below, or expand "View loaded policies" above to see what's available.</div>
 </div>""", unsafe_allow_html=True)
 else:
     for item in st.session_state.messages:
@@ -475,51 +537,55 @@ else:
                 seen.add(key)
                 unique_sources.append(src)
 
-        with st.container(border=True):
-            st.markdown(f"**{item['question']}**")
+        # User bubble
+        with st.chat_message("user"):
+            st.markdown(item["question"])
+
+        # Assistant bubble
+        with st.chat_message("assistant", avatar="🔷"):
             st.markdown(item["answer"])
-            bl, br = st.columns([3, 1])
             if unique_sources:
-                parts = [
-                    f"`{s['filename']}` §{s['page_number']}"
-                    for s in unique_sources
-                ]
-                bl.markdown("**Sources:** " + " · ".join(parts))
-            br.markdown(f":{color}[**{label}**]")
+                parts = [f"`{s['filename']}` §{s['page_number']}" for s in unique_sources]
+                st.caption("**Sources:** " + " · ".join(parts))
+            st.caption(f":{color}[{label}]")
+
+    if st.button("Clear conversation", key="clear_conv"):
+        st.session_state.messages = []
+        st.rerun()
 
 # ─── Input ────────────────────────────────────────────────────────────────────
 
-st.markdown("---")
+has_policies = bool(st.session_state.policies_info)
 
 # Handle template prefill
 prefill = st.session_state.pop("_prefill", "")
 
-has_policies = bool(st.session_state.policies_info)
-
-with st.form("question_form", clear_on_submit=True):
-    qc, bc = st.columns([5, 1])
-    question = qc.text_input(
-        "question",
-        value=prefill,
-        placeholder="Ask about your M365 governance policies…",
-        label_visibility="collapsed",
-        disabled=not has_policies,
-    )
-    submitted = bc.form_submit_button(
-        "Ask →", type="primary", use_container_width=True, disabled=not has_policies
-    )
-
 if not has_policies:
-    st.caption("Sync policies or load the demo to start asking questions.")
-
-if submitted and question.strip():
-    with st.spinner("Analysing policies…"):
-        result = do_query(question.strip())
-    if result:
-        st.session_state.messages.append({"question": question.strip(), **result})
-        st.rerun()
-
-if st.session_state.messages:
-    if st.button("Clear conversation", use_container_width=False):
-        st.session_state.messages = []
-        st.rerun()
+    st.chat_input("Load policies first to start asking questions…", disabled=True)
+else:
+    question = st.chat_input(prefill or "Ask about your M365 governance policies…")
+    if question:
+        # Show user bubble immediately
+        with st.chat_message("user"):
+            st.markdown(question)
+        # Stream spinner in assistant bubble
+        with st.chat_message("assistant", avatar="🔷"):
+            with st.spinner("Analysing policies… (first query loads the AI model, ~30 s)"):
+                result = do_query(question)
+            if result:
+                st.markdown(result["answer"])
+                unique_sources = []
+                seen: set = set()
+                for src in result.get("sources", []):
+                    key = (src["filename"], src["page_number"])
+                    if key not in seen:
+                        seen.add(key)
+                        unique_sources.append(src)
+                if unique_sources:
+                    parts = [f"`{s['filename']}` §{s['page_number']}" for s in unique_sources]
+                    st.caption("**Sources:** " + " · ".join(parts))
+                label, color = confidence_label(result["confidence"])
+                st.caption(f":{color}[{label}]")
+        if result:
+            st.session_state.messages.append({"question": question, **result})
+            st.rerun()

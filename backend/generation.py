@@ -17,7 +17,7 @@ from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
-MODEL_ID = "Qwen/Qwen2.5-1.5B-Instruct"
+MODEL_ID = "Qwen/Qwen2.5-0.5B-Instruct"
 MAX_NEW_TOKENS = 512
 
 
@@ -64,16 +64,12 @@ def generate(system_prompt: str, user_message: str) -> str:
     result = pipe(
         messages,
         max_new_tokens=MAX_NEW_TOKENS,
-        do_sample=False,   # deterministic — important for governance answers
-        temperature=None,
-        top_p=None,
+        do_sample=False,
         return_full_text=False,
     )
 
-    # transformers pipeline with return_full_text=False returns only the
-    # assistant turn directly as a string
     output = result[0]["generated_text"]
+    # transformers 5.x chat pipeline returns a list of message dicts
     if isinstance(output, list):
-        # Chat format: last message is the assistant turn
-        return output[-1].get("content", "")
-    return str(output)
+        return output[-1].get("content", "").strip()
+    return str(output).strip()
