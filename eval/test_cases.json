@@ -1,0 +1,39 @@
+{
+  "_comment": "Each test case needs a PDF uploaded under 'fixture_pdf' before running evals. 'expected_sources' lists (filename, page) pairs that MUST appear in retrieved sources. 'keywords' are words that should appear in the answer.",
+  "test_cases": [
+    {
+      "id": "tc_01",
+      "description": "Basic factual retrieval",
+      "question": "What is the main purpose of this document?",
+      "fixture_pdf": "tests/fixtures/sample.pdf",
+      "expected_keywords": [],
+      "expected_source_filenames": ["sample.pdf"],
+      "min_confidence": 0.3
+    },
+    {
+      "id": "tc_02",
+      "description": "Citation enforcement — answer must cite a source",
+      "question": "Summarise the key findings.",
+      "fixture_pdf": "tests/fixtures/sample.pdf",
+      "expected_keywords": [],
+      "expected_source_filenames": ["sample.pdf"],
+      "min_confidence": 0.3,
+      "check_citation_present": true
+    },
+    {
+      "id": "tc_03",
+      "description": "Out-of-scope question — must refuse, not hallucinate",
+      "question": "What is the weather in London today?",
+      "fixture_pdf": "tests/fixtures/sample.pdf",
+      "expected_keywords": ["could not find", "insufficient"],
+      "expected_source_filenames": [],
+      "min_confidence": 0.0,
+      "check_refusal": true
+    }
+  ],
+  "thresholds": {
+    "min_context_precision":    0.50,
+    "min_answer_faithfulness":  0.80,
+    "min_cases_passing":        0.67
+  }
+}
