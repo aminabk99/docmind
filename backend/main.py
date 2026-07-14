@@ -1,4 +1,4 @@
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
@@ -99,46 +99,6 @@ async def delete_document_endpoint(doc_id: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Delete failed: {exc}") from exc
-
-
-# ---------------------------------------------------------------------------
-# MODEL  —  GET /model/status  +  POST /model/warm
-# ---------------------------------------------------------------------------
-
-_model_warming = False
-
-def _is_model_cached() -> bool:
-    """Check HuggingFace cache without triggering a download."""
-    from backend.generation import MODEL_ID
-    cache_dir = Path.home() / ".cache" / "huggingface" / "hub"
-    model_dir = "models--" + MODEL_ID.replace("/", "--")
-    return (cache_dir / model_dir / "snapshots").exists()
-
-
-def _warm_model():
-    global _model_warming
-    try:
-        from backend.generation import _get_pipeline
-        _get_pipeline()
-    finally:
-        _model_warming = False
-
-
-@app.get("/model/status")
-async def model_status():
-    return {"ready": _is_model_cached(), "warming": _model_warming}
-
-
-@app.post("/model/warm")
-async def warm_model(background_tasks: BackgroundTasks):
-    global _model_warming
-    if not _is_model_cached() and not _model_warming:
-        _model_warming = True
-        background_tasks.add_task(_warm_model)
-        return {"status": "downloading"}
-    if _model_warming:
-        return {"status": "already_downloading"}
-    return {"status": "already_ready"}
 
 
 # ---------------------------------------------------------------------------

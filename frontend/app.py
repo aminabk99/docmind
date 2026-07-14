@@ -8,6 +8,7 @@ Two entry paths:
 """
 
 import os
+import re
 import time
 import uuid as _uuid
 
@@ -185,6 +186,31 @@ button[data-testid="baseButton-headerNoPadding"] svg {
     fill: white !important; stroke: white !important;
 }
 button[data-testid="baseButton-headerNoPadding"] svg * { fill: white !important; stroke: white !important; }
+
+/* ── Chat bubbles ─────────────────────────────────────────────────────── */
+
+/* Source pill */
+.src-pill {
+    display: inline-block;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    padding: 2px 9px;
+    border-radius: 6px;
+    font-size: 0.74rem;
+    margin: 2px 3px 2px 0;
+    white-space: nowrap;
+}
+
+/* Clear button — minimal, left-aligned */
+div[data-testid="stHorizontalBlock"] button[kind="secondary"]:has(span:contains("Clear")) {
+    padding: 4px 12px !important;
+    font-size: 0.8rem !important;
+    border-radius: 8px !important;
+    background: transparent !important;
+    border: 1px solid #e2e8f0 !important;
+    color: #94a3b8 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -292,11 +318,98 @@ def do_query(question: str) -> dict | None:
 
 def confidence_label(score: float) -> tuple[str, str]:
     if score >= 0.75:
-        return "High Confidence", "green"
+        return "High confidence", "green"
     elif score >= 0.45:
-        return "Medium Confidence", "orange"
+        return "Medium confidence", "orange"
     else:
-        return "Low Confidence", "red"
+        return "Low confidence", "red"
+
+
+def _md_to_html(text: str) -> str:
+    """Convert basic LLM markdown to HTML for inline rendering."""
+    # Escape HTML entities
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    # Bold and italic
+    text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+    # Bullet list lines (- or *) → bullet character
+    lines = text.split("\n")
+    processed = []
+    for line in lines:
+        if re.match(r"^[-•]\s+", line):
+            line = "&#8226;&nbsp;" + re.sub(r"^[-•]\s+", "", line)
+        elif re.match(r"^\d+\.\s+", line):
+            pass  # keep numbered list lines as-is
+        processed.append(line)
+    return "<br>".join(processed)
+
+
+def _user_bubble(text: str) -> None:
+    """Render a right-aligned WhatsApp-style green bubble for the user's message."""
+    html_text = _md_to_html(text)
+    st.markdown(
+        f"""
+<div style="display:flex;justify-content:flex-end;margin:6px 0 10px;">
+  <div style="background:#dcf8c6;color:#111;padding:10px 14px;
+              border-radius:18px 18px 4px 18px;max-width:75%;
+              font-size:0.9rem;line-height:1.55;word-wrap:break-word;
+              box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+    {html_text}
+  </div>
+</div>""",
+        unsafe_allow_html=True,
+    )
+
+
+def _bot_bubble(text: str, sources: list, confidence: float) -> None:
+    """Render a left-aligned white bubble for bot responses with source pills."""
+    html_text = _md_to_html(text)
+
+    # Deduplicate sources by filename
+    seen: set = set()
+    unique: list = []
+    for s in sources:
+        name = s.get("filename", "")
+        if name and name not in seen:
+            seen.add(name)
+            unique.append(name)
+
+    # Source pills HTML
+    src_html = ""
+    if unique:
+        pills = "".join(
+            f'<span class="src-pill">{n}</span>' for n in unique[:6]
+        )
+        src_html = (
+            f'<div style="margin-top:10px;border-top:1px solid #f1f5f9;'
+            f'padding-top:8px;"><span style="font-size:0.73rem;color:#94a3b8;'
+            f'font-weight:500;text-transform:uppercase;letter-spacing:0.04em;">'
+            f'Sources</span><br>{pills}</div>'
+        )
+
+    # Confidence badge
+    label, colour = confidence_label(confidence)
+    conf_colours = {"green": "#16a34a", "orange": "#d97706", "red": "#dc2626"}
+    conf_hex = conf_colours.get(colour, "#94a3b8")
+    conf_html = (
+        f'<div style="margin-top:6px;font-size:0.73rem;color:{conf_hex};">'
+        f'{label}</div>'
+    )
+
+    st.markdown(
+        f"""
+<div style="display:flex;justify-content:flex-start;margin:6px 0 10px;">
+  <div style="background:white;border:1px solid #e2e8f0;color:#111;
+              padding:12px 15px;border-radius:18px 18px 18px 4px;max-width:80%;
+              font-size:0.9rem;line-height:1.55;word-wrap:break-word;
+              box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+    {html_text}
+    {src_html}
+    {conf_html}
+  </div>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
 
 # ─── Sidebar ─────────────────────────────────────────────────────────────────
@@ -421,31 +534,20 @@ if st.session_state.mode is None:
     st.markdown("---")
 
     # ── Model download section ────────────────────────────────────────────────
+    # Ollama health check
     try:
-        status = api_get("/model/status").json()
-        model_ready   = status.get("ready", False)
-        model_warming = status.get("warming", False)
+        r = httpx.get("http://localhost:11434", timeout=2)
+        ollama_ok = True
     except Exception:
-        model_ready   = False
-        model_warming = False
+        ollama_ok = False
 
-    if model_ready:
-        st.success("AI model ready — first query will be fast.")
-    elif model_warming:
-        st.info("Downloading AI model… this takes a few minutes. You can launch the demo while you wait.")
-        time.sleep(3)
-        st.rerun()
-    else:
-        st.warning(
-            "**AI model not downloaded yet.** Download it now so your first question "
-            "answers instantly (~3 GB, 3-5 min on a typical connection)."
+    if not ollama_ok:
+        st.error(
+            "**Ollama is not running.** Open a terminal and run `ollama serve`, then refresh this page."
         )
-        if st.button("Download AI model now", type="secondary"):
-            httpx.post(f"{BACKEND_URL}/model/warm", timeout=10)
-            st.rerun()
 
     st.markdown(
-        "<small>Powered by Qwen2.5-1.5B (local) · nomic-embed-text · Hybrid RAG · "
+        "<small>Powered by Qwen2.5-1.5B via Ollama · nomic-embed-text · Hybrid RAG · "
         "No telemetry · No cloud calls</small>",
         unsafe_allow_html=True,
     )
@@ -523,69 +625,40 @@ if not st.session_state.messages:
 <div class="empty-state" style="padding:2.5rem 1rem">
   <div class="empty-state-icon">💬</div>
   <div class="empty-state-title">Ask about your governance policies</div>
-  <div class="empty-state-sub">Type a question below, or expand "View loaded policies" above to see what's available.</div>
+  <div class="empty-state-sub">Type a question below, or pick a template from the sidebar.</div>
 </div>""", unsafe_allow_html=True)
 else:
     for item in st.session_state.messages:
-        label, color = confidence_label(item["confidence"])
+        _user_bubble(item["question"])
+        _bot_bubble(item["answer"], item.get("sources", []), item["confidence"])
 
-        seen: set = set()
-        unique_sources = []
-        for src in item.get("sources", []):
-            key = (src["filename"], src["page_number"])
-            if key not in seen:
-                seen.add(key)
-                unique_sources.append(src)
-
-        # User bubble
-        with st.chat_message("user"):
-            st.markdown(item["question"])
-
-        # Assistant bubble
-        with st.chat_message("assistant", avatar="🔷"):
-            st.markdown(item["answer"])
-            if unique_sources:
-                parts = [f"`{s['filename']}` §{s['page_number']}" for s in unique_sources]
-                st.caption("**Sources:** " + " · ".join(parts))
-            st.caption(f":{color}[{label}]")
-
-    if st.button("Clear conversation", key="clear_conv"):
-        st.session_state.messages = []
-        st.rerun()
-
-# ─── Input ────────────────────────────────────────────────────────────────────
+# ─── Input row — clear button left, chat input right ─────────────────────────
 
 has_policies = bool(st.session_state.policies_info)
 
 # Handle template prefill
 prefill = st.session_state.pop("_prefill", "")
 
+# Clear button: only show when there are messages, placed in a left column
+if st.session_state.messages:
+    _ccol, _ = st.columns([1, 8])
+    with _ccol:
+        if st.button("🗑 Clear", key="clear_conv", help="Clear conversation"):
+            st.session_state.messages = []
+            st.rerun()
+
 if not has_policies:
     st.chat_input("Load policies first to start asking questions…", disabled=True)
 else:
     question = st.chat_input(prefill or "Ask about your M365 governance policies…")
     if question:
-        # Show user bubble immediately
-        with st.chat_message("user"):
-            st.markdown(question)
-        # Stream spinner in assistant bubble
-        with st.chat_message("assistant", avatar="🔷"):
-            with st.spinner("Analysing policies… (first query loads the AI model, ~30 s)"):
-                result = do_query(question)
-            if result:
-                st.markdown(result["answer"])
-                unique_sources = []
-                seen: set = set()
-                for src in result.get("sources", []):
-                    key = (src["filename"], src["page_number"])
-                    if key not in seen:
-                        seen.add(key)
-                        unique_sources.append(src)
-                if unique_sources:
-                    parts = [f"`{s['filename']}` §{s['page_number']}" for s in unique_sources]
-                    st.caption("**Sources:** " + " · ".join(parts))
-                label, color = confidence_label(result["confidence"])
-                st.caption(f":{color}[{label}]")
+        # Render user bubble immediately
+        _user_bubble(question)
+
+        with st.spinner("Analysing policies…"):
+            result = do_query(question)
+
         if result:
+            _bot_bubble(result["answer"], result.get("sources", []), result["confidence"])
             st.session_state.messages.append({"question": question, **result})
             st.rerun()
