@@ -112,7 +112,7 @@ def generate_cases(
     metas = results["metadatas"]
 
     if not docs:
-        print("No chunks found in ChromaDB. Upload a PDF first.", file=sys.stderr)
+        print("No chunks found in ChromaDB. Load policies first (POST /demo/load) or upload a document.", file=sys.stderr)
         return []
 
     # Sample up to max_cases chunks, prefer longer chunks (more content)

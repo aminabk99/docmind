@@ -1,5 +1,5 @@
 """
-Metrics Engine for DocMind
+Metrics Engine for M365Mind
 ===========================
 Reads traces.jsonl and computes:
 

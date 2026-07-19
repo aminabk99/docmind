@@ -64,9 +64,9 @@ jobs:
       - name: Pull required models
         run: |
           ollama pull nomic-embed-text
-          ollama pull tinyllama
+          ollama pull qwen2.5:1.5b
 
-      - name: Start DocMind backend
+      - name: Start M365Mind backend
         env:
           CHROMA_DB_PATH: /tmp/chroma_eval
           OLLAMA_BASE_URL: http://localhost:11434
@@ -74,29 +74,16 @@ jobs:
           uvicorn backend.main:app --host 0.0.0.0 --port 8000 &
           sleep 3
 
-      - name: Generate fixture PDF and ingest
+      - name: Load demo M365 policies
+        env:
+          CHROMA_DB_PATH: /tmp/chroma_eval
+          OLLAMA_BASE_URL: http://localhost:11434
         run: |
-          pip install fpdf2 --quiet
-          mkdir -p tests/fixtures
-          python -c "
-          from fpdf import FPDF
-          pdf = FPDF()
-          pdf.add_page()
-          pdf.set_font('Helvetica', size=12)
-          for line in [
-            'DocMind Evaluation Sample Document',
-            'The refund policy allows returns within 30 days of purchase.',
-            'Customer support is available Monday to Friday, 9am to 5pm.',
-            'All prices are listed in USD and subject to change without notice.',
-            'The system uses a microservices architecture with AES-256 encryption.',
-            'The API rate limit is 1000 requests per hour per user.',
-            'Accounts inactive for 90 days are automatically deactivated.',
-          ]:
-            pdf.cell(0, 10, line, ln=True)
-          pdf.output('tests/fixtures/sample.pdf')
-          print('Fixture PDF created.')
-          "
-          curl -s -F "file=@tests/fixtures/sample.pdf" http://localhost:8000/upload
+          # Ingest the 17 sample governance policies (Conditional Access,
+          # Named Locations, Sensitivity Labels) via the real /demo/load
+          # endpoint, so the eval tests the actual M365 product path rather
+          # than a generic document PDF.
+          curl -s -X POST http://localhost:8000/demo/load
           sleep 2
 
       - name: Auto-generate eval cases from ingested docs

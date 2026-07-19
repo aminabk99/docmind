@@ -19,10 +19,10 @@ Usage
     from eval.llm_judge import judge
 
     result = judge(
-        question        = "What is the refund policy?",
+        question        = "Which policies require MFA?",
         ground_truth    = "Refunds are issued within 30 days.",
-        system_answer   = "Refunds take 30 days. [policy.pdf, page 2]",
-        source_chunks   = ["The refund period is 30 days from purchase."],
+        system_answer   = "The Require MFA for All Users policy enforces MFA. [Require MFA for All Users, page 1]",
+        source_chunks   = ["Policy: Require MFA for All Users. Status: Enabled. Grant controls: Require multifactor authentication."],
     )
     # result -> {"faithfulness": 0.9, "relevance": 1.0, "reasoning": "..."}
 """

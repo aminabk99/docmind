@@ -1,5 +1,5 @@
 """
-Ingestion pipeline for DocMind.
+Ingestion pipeline for M365Mind.
 
 Changes from original
 ---------------------
@@ -38,7 +38,7 @@ def get_chroma_collection() -> chromadb.Collection:
 
 def ingest_pdf(file_bytes: bytes, original_filename: str) -> dict:
     """
-    Load a PDF, split into chunks, embed with Ollama nomic-embed-text,
+    Load a PDF, split into chunks, embed with sentence-transformers nomic-embed-text-v1.5,
     store in ChromaDB, then rebuild the BM25 index.
 
     Returns {doc_id, filename, chunk_count}.

@@ -51,7 +51,7 @@ def generate_markdown(results: dict) -> str:
     runs   = results.get("runs", [])
 
     lines = [
-        "# DocMind — Local SLM Benchmark Report",
+        "# M365Mind — Local SLM Benchmark Report",
         "",
         f"**Run date:** {ts[:10]}  ",
         f"**Ollama endpoint:** {results.get('base_url', 'localhost')}  ",

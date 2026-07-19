@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DocMind Evaluation Pipeline
+M365Mind Evaluation Pipeline
 ============================
 Measures three axes of quality using LLM-as-judge scoring:
 
@@ -61,7 +61,7 @@ def run_case_quick(case: dict) -> dict:
         f"Based on the document, {case.get('ground_truth_answer', 'the answer is in the sources')} "
         f"[{case.get('expected_source_filenames', ['sample.pdf'])[0]}, page 1]"
         if not case.get("check_refusal")
-        else "I could not find sufficient information in the uploaded documents."
+        else "I could not find sufficient information in the loaded policies."
     )
 
     faith = answer_faithfulness_heuristic(mock_answer)
@@ -193,7 +193,7 @@ def save_history(results: list[dict], commit_sha: str = "") -> None:
 
 def print_report(results: list[dict], thresholds: dict) -> bool:
     print("\n" + "=" * 64)
-    print("DocMind Eval Report  (LLM-as-Judge)")
+    print("M365Mind Eval Report  (LLM-as-Judge)")
     print("=" * 64)
 
     total   = len(results)
@@ -246,7 +246,7 @@ def print_report(results: list[dict], thresholds: dict) -> bool:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="DocMind eval pipeline")
+    parser = argparse.ArgumentParser(description="M365Mind eval pipeline")
     parser.add_argument("--quick",       action="store_true")
     parser.add_argument("--full",        action="store_true")
     parser.add_argument("--backend-url", default="http://localhost:8000")

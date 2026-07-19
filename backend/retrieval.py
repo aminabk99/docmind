@@ -1,5 +1,5 @@
 """
-Hybrid retrieval pipeline for DocMind.
+Hybrid retrieval pipeline for M365Mind.
 
 Flow
 ----
@@ -157,7 +157,7 @@ def answer_question(
     # Guard: no documents
     # ------------------------------------------------------------------
     if doc_ids is not None and len(doc_ids) == 0:
-        return _empty("No documents in this chat yet. Upload a PDF using the input below.")
+        return _empty("No policies loaded yet. Click Launch Demo, or Sync Policies from your tenant.")
 
     collection = get_chroma_collection()
 
@@ -168,7 +168,7 @@ def answer_question(
         total = collection.count()
 
     if total == 0:
-        return _empty("No documents have been uploaded yet. Upload a PDF to get started.")
+        return _empty("No policies loaded yet. Click Launch Demo to explore sample M365 policies, or connect your tenant and Sync Policies.")
 
     # ------------------------------------------------------------------
     # Step 1 — Vector search

@@ -1,30 +1,48 @@
 {
-  "_comment": "Each test case needs a PDF uploaded under 'fixture_pdf' before running evals. 'expected_sources' lists (filename, page) pairs that MUST appear in retrieved sources. 'keywords' are words that should appear in the answer.",
+  "_comment": "M365 governance eval. Data is the demo policies loaded via POST /demo/load (17 sample policies: 8 Conditional Access, 3 Named Locations, 6 Sensitivity Labels) — no PDF upload needed. 'expected_source_filenames' are policy display names that must appear in retrieved sources. 'expected_keywords' must appear in the answer.",
   "test_cases": [
     {
       "id": "tc_01",
-      "description": "Basic factual retrieval",
-      "question": "What is the main purpose of this document?",
-      "fixture_pdf": "tests/fixtures/sample.pdf",
-      "expected_keywords": [],
-      "expected_source_filenames": ["sample.pdf"],
+      "description": "Conditional Access — which policies enforce MFA",
+      "question": "Which conditional access policies require multi-factor authentication?",
+      "ground_truth_answer": "Two policies require MFA: 'Require MFA for All Users' applies to all users, and 'Require MFA for Global Administrators' targets administrator roles.",
+      "expected_keywords": ["MFA"],
+      "expected_source_filenames": ["Require MFA for All Users"],
       "min_confidence": 0.3
     },
     {
       "id": "tc_02",
-      "description": "Citation enforcement — answer must cite a source",
-      "question": "Summarise the key findings.",
-      "fixture_pdf": "tests/fixtures/sample.pdf",
-      "expected_keywords": [],
-      "expected_source_filenames": ["sample.pdf"],
+      "description": "Conditional Access — legacy auth, with citation enforcement",
+      "question": "Is legacy authentication blocked in this tenant?",
+      "ground_truth_answer": "Yes. The 'Block Legacy Authentication' policy is enabled and blocks legacy authentication clients such as Exchange ActiveSync and other legacy clients.",
+      "expected_keywords": ["legacy"],
+      "expected_source_filenames": ["Block Legacy Authentication"],
       "min_confidence": 0.3,
       "check_citation_present": true
     },
     {
       "id": "tc_03",
+      "description": "Sensitivity Labels — inventory and most restrictive",
+      "question": "What sensitivity labels are configured, and which is the most restrictive?",
+      "ground_truth_answer": "The tenant has Public, General, Confidential, and Highly Confidential labels (some with sub-labels). Highly Confidential is the most restrictive.",
+      "expected_keywords": ["Highly Confidential"],
+      "expected_source_filenames": ["Highly Confidential"],
+      "min_confidence": 0.3
+    },
+    {
+      "id": "tc_04",
+      "description": "Named Locations — high-risk locations",
+      "question": "Which named locations are treated as high risk?",
+      "ground_truth_answer": "The 'High-Risk Countries Blocklist' named location defines the high-risk countries used by blocking policies.",
+      "expected_keywords": ["High-Risk Countries"],
+      "expected_source_filenames": ["High-Risk Countries Blocklist"],
+      "min_confidence": 0.3
+    },
+    {
+      "id": "tc_05",
       "description": "Out-of-scope question — must refuse, not hallucinate",
       "question": "What is the weather in London today?",
-      "fixture_pdf": "tests/fixtures/sample.pdf",
+      "ground_truth_answer": "",
       "expected_keywords": ["could not find", "insufficient"],
       "expected_source_filenames": [],
       "min_confidence": 0.0,

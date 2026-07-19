@@ -9,19 +9,21 @@ Local AI for Microsoft 365 governance — query your Conditional Access policies
 1. **Python 3.10+** — [python.org](https://www.python.org/downloads/)
 2. **Ollama** — [ollama.com](https://ollama.com) — manages the local AI model
 
-After installing Ollama, pull the model (one time, ~1 GB):
+After installing Ollama, pull the generation model (one time, ~1 GB):
 
 ```bash
 ollama pull qwen2.5:1.5b
 ```
+
+The embedding model (`nomic-embed-text-v1.5`, ~270 MB) downloads automatically via sentence-transformers on first query — no manual step.
 
 ---
 
 ## Setup
 
 ```bash
-git clone https://github.com/aminabk99/m365mind
-cd docmind
+git clone https://github.com/aminabk99/M365Mind
+cd M365Mind
 pip install -r requirements.txt
 ```
 
@@ -35,7 +37,7 @@ cp .env.example .env
 
 ## Run it
 
-Open **two terminals** from the `docmind` folder:
+Open **three terminals** from the `M365Mind` folder:
 
 ```bash
 # Terminal 1 — start Ollama (skip if already running as a service)
@@ -73,4 +75,4 @@ Click **Sign in with Microsoft** on the landing screen, then **Sync Policies** i
 
 ## Tech
 
-FastAPI · Streamlit · ChromaDB · BM25 · nomic-embed-text · Qwen2.5-1.5B via Ollama · MSAL · Microsoft Graph API
+FastAPI · Streamlit · ChromaDB · BM25 (rank-bm25) · nomic-embed-text-v1.5 (sentence-transformers) · Qwen2.5-1.5B (Ollama) · MSAL · Microsoft Graph API

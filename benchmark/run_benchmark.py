@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-DocMind — Multi-Model Inference Benchmark
+M365Mind — Multi-Model Inference Benchmark
 ==========================================
 Runs a fixed prompt suite through 3 local SLMs via Ollama and records
 real performance metrics straight from the Ollama response payload:
@@ -43,7 +43,7 @@ from backend.config import OLLAMA_BASE_URL
 
 DEFAULT_MODELS = ["tinyllama", "phi3:mini", "mistral:7b"]
 
-# Prompt suite — covers the main DocMind use cases
+# Prompt suite — covers the main M365Mind use cases
 PROMPTS = [
     {
         "id": "factual_recall",
@@ -86,9 +86,9 @@ PROMPTS = [
         "category": "Citation Format",
         "prompt": (
             "You are a document assistant. Given this context:\n\n"
-            "[Source: policy.pdf, page 2]\nRefunds are processed within 30 business days.\n\n"
+            "[Source: Block Legacy Authentication, page 1]\nThis policy blocks legacy authentication clients such as Exchange ActiveSync.\n\n"
             "Answer this question and cite your source using the format [filename, page N]:\n"
-            "How long do refunds take?"
+            "Does this tenant block legacy authentication?"
         ),
     },
 ]
@@ -269,7 +269,7 @@ def run_benchmark(
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="DocMind multi-model benchmark")
+    parser = argparse.ArgumentParser(description="M365Mind multi-model benchmark")
     parser.add_argument("--models",  nargs="+", default=DEFAULT_MODELS)
     parser.add_argument("--base-url", default=OLLAMA_BASE_URL)
     parser.add_argument("--no-pull", action="store_true")

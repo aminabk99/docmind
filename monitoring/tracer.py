@@ -1,5 +1,5 @@
 """
-Request Tracer for DocMind
+Request Tracer for M365Mind
 ===========================
 Lightweight span-based tracer. No external dependencies.
 
