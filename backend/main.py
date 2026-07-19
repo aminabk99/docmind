@@ -70,6 +70,14 @@ async def serve_frontend():
     return FileResponse(_FRONTEND, media_type="text/html")
 
 
+@app.get("/bg.jpg")
+async def serve_bg():
+    bg = _FRONTEND.parent / "bg.jpg"
+    if not bg.exists():
+        raise HTTPException(status_code=404, detail="bg.jpg not found")
+    return FileResponse(bg, media_type="image/jpeg")
+
+
 class QueryRequest(BaseModel):
     question: str
     top_k: int = 5

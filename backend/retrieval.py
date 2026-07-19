@@ -16,6 +16,7 @@ Flow
 from __future__ import annotations
 
 import re
+import math
 
 from backend.ingest import get_chroma_collection
 from backend.bm25_store import get_bm25_store
@@ -271,10 +272,24 @@ def answer_question(
     ]
 
     # Confidence from the cross-encoder is mode-independent.
-    rerank_scores = [c.get("rerank_score", 0.0) for c in reranked]
+    #
+    # The cross-encoder emits an unbounded relevance *logit* per chunk. The old
+    # mapping (logit+10)/20 was a made-up linear squash that pinned almost every
+    # real score near 0.5 — which is why confidence always looked "low". A
+    # sigmoid is the calibrated inverse of the logit, so a strongly-relevant
+    # chunk (logit ~5) reads ~0.99 and a weak one (logit ~-3) reads ~0.05.
+    #
+    # We score on the *best-matching* evidence, not the mean of all top-k:
+    # averaging in the tail chunks (which are deliberately weaker) drags a good
+    # answer down. Use the mean of the top-2 rerank logits so a single lucky
+    # hit still needs corroboration.
+    rerank_scores = sorted(
+        (c.get("rerank_score", 0.0) for c in reranked), reverse=True
+    )
     if rerank_scores:
-        mean_logit = sum(rerank_scores) / len(rerank_scores)
-        confidence = round(max(0.0, min(1.0, (mean_logit + 10) / 20)), 4)
+        top = rerank_scores[:2]
+        best_logit = sum(top) / len(top)
+        confidence = round(1.0 / (1.0 + math.exp(-best_logit)), 4)
     else:
         confidence = 0.0
 

@@ -52,7 +52,7 @@
     <button id="new-chat" class="w-full flex items-center gap-3 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/15 transition-all">
       <span class="material-symbols-outlined">add_comment</span><span>New chat</span></button>
     <button id="load-demo" class="w-full flex items-center gap-3 px-4 py-2.5 text-outline-variant hover:bg-white/5 rounded-xl transition-all">
-      <span class="material-symbols-outlined">bolt</span><span>Load demo policies</span></button>
+      <span class="material-symbols-outlined">dataset</span><span>Load demo policies</span></button>
     <label class="w-full flex items-center gap-3 px-4 py-2.5 text-outline-variant hover:bg-white/5 rounded-xl transition-all cursor-pointer">
       <span class="material-symbols-outlined">upload_file</span><span>Upload your files</span>
       <input id="side-upload" type="file" accept="application/pdf" multiple class="hidden" /></label>
@@ -70,32 +70,63 @@
 </aside>
 
 <!-- Workspace -->
-<main class="md:ml-[300px] h-screen relative flex flex-col items-center bg-surface">
-  <header class="w-full max-w-[820px] px-5 py-4 flex items-center justify-between sticky top-0 z-10 md:hidden bg-surface/80 backdrop-blur-md">
+<main class="md:ml-[300px] h-screen relative flex flex-col items-center bg-cover bg-center bg-fixed" style="background-image:url('bg.jpg')">
+  <div class="absolute inset-0 bg-surface/70 backdrop-blur-[2px] pointer-events-none"></div>
+  <header class="relative z-[1] w-full max-w-[820px] px-5 py-4 flex items-center justify-between sticky top-0 md:hidden bg-surface/80 backdrop-blur-md">
     <h2 class="text-xl font-semibold text-primary">M365Mind</h2>
   </header>
 
-  <!-- Chat canvas -->
-  <div id="chat" class="chat-scroll flex-grow w-full max-w-[820px] px-4 md:px-6 overflow-y-auto pt-8 pb-40 space-y-6">
-    <!-- Empty state -->
+  <!-- HOME view: choose where to go -->
+  <div id="home" class="relative z-[1] w-full max-w-[720px] px-4 md:px-6 py-10 flex flex-col items-center text-center overflow-y-auto">
+    <div class="w-16 h-16 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center mb-4">
+      <span class="material-symbols-outlined text-[36px] fill">psychology</span>
+    </div>
+    <h3 class="text-2xl font-bold tracking-tight mb-1">M365Mind — governance intelligence</h3>
+    <p class="text-on-surface-variant max-w-md mb-1">Ask about Conditional Access, Sensitivity Labels and Named Locations. Answers come straight from the policies, ranked and cited.</p>
+    <p class="text-[12px] text-on-surface-variant/70 mb-6">⏳ First load downloads a small model (~30s). Instant after that.</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-lg">
+      <button id="home-demo" class="glass-input flex items-center gap-3 p-4 rounded-xl border border-outline-variant/30 hover:border-primary text-left transition-all">
+        <span class="material-symbols-outlined text-primary">dataset</span>
+        <span><span class="block font-semibold">Load demo policies</span><span class="block text-[12px] text-on-surface-variant">17 sample M365 policies</span></span></button>
+      <label id="home-upload-label" class="glass-input flex items-center gap-3 p-4 rounded-xl border border-outline-variant/30 hover:border-primary text-left transition-all cursor-pointer">
+        <span class="material-symbols-outlined text-primary">upload_file</span>
+        <span><span class="block font-semibold">Upload your files</span><span class="block text-[12px] text-on-surface-variant">PDF policy exports</span></span>
+        <input id="home-upload" type="file" accept="application/pdf" multiple class="hidden" /></label>
+      <button id="home-chat" class="glass-input flex items-center gap-3 p-4 rounded-xl border border-outline-variant/30 hover:border-primary text-left transition-all opacity-60" disabled>
+        <span class="material-symbols-outlined text-primary">forum</span>
+        <span><span class="block font-semibold">Open chat</span><span class="block text-[12px] text-on-surface-variant">Load policies first</span></span></button>
+      <a href="/metrics" target="_blank" rel="noopener" class="glass-input flex items-center gap-3 p-4 rounded-xl border border-outline-variant/30 hover:border-primary text-left transition-all">
+        <span class="material-symbols-outlined text-primary">monitoring</span>
+        <span><span class="block font-semibold">Metrics</span><span class="block text-[12px] text-on-surface-variant">Live latency + stats</span></span></a>
+    </div>
+
+    <!-- Policy preview (revealed after loading) -->
+    <details id="policy-panel" class="w-full max-w-lg mt-5 glass-input rounded-xl border border-outline-variant/30 text-left" style="display:none">
+      <summary class="cursor-pointer select-none px-4 py-3 font-semibold flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[20px]">list</span>
+        <span id="policy-count">Loaded policies</span>
+        <span class="material-symbols-outlined text-on-surface-variant ml-auto text-[20px]">expand_more</span>
+      </summary>
+      <ul id="policy-list" class="px-4 pb-4 pt-1 space-y-1 text-sm text-on-surface-variant max-h-72 overflow-y-auto"></ul>
+    </details>
+  </div>
+
+  <!-- CHAT view -->
+  <div id="chat" class="chat-scroll relative z-[1] flex-grow w-full max-w-[820px] px-4 md:px-6 overflow-y-auto pt-8 pb-40 space-y-6" style="display:none">
     <div id="empty" class="h-full flex flex-col items-center justify-center text-center px-6">
-      <div class="w-16 h-16 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center mb-4">
-        <span class="material-symbols-outlined text-[36px] fill">psychology</span>
-      </div>
-      <h3 class="text-2xl font-bold tracking-tight mb-1">Ask about your M365 governance</h3>
-      <p class="text-on-surface-variant max-w-md mb-2">Conditional Access, Sensitivity Labels, Named Locations — answered instantly from the exact policies, with citations.</p>
-      <p class="text-[12px] text-on-surface-variant/70 mb-5">⏳ First load downloads a small model (~30s). Instant after that.</p>
+      <h3 class="text-xl font-bold tracking-tight mb-1">Ask a governance question</h3>
+      <p class="text-on-surface-variant max-w-md mb-4">Answers come from the loaded policies, with citations. Try one:</p>
       <div class="flex flex-wrap gap-2 justify-center">
         <button class="try-chip bg-surface-container border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary text-sm px-3 py-1.5 rounded-full transition-colors">Which policies require MFA?</button>
         <button class="try-chip bg-surface-container border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary text-sm px-3 py-1.5 rounded-full transition-colors">Is legacy authentication blocked?</button>
         <button class="try-chip bg-surface-container border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary text-sm px-3 py-1.5 rounded-full transition-colors">What sensitivity labels exist?</button>
       </div>
-      <button id="empty-demo" class="mt-6 bg-primary text-white font-semibold px-6 py-2.5 rounded-lg hover:brightness-110 transition-all shadow-lg shadow-primary/30">⚡ Load demo policies</button>
     </div>
   </div>
 
-  <!-- Floating glass input -->
-  <div class="fixed bottom-6 left-0 right-0 md:left-[300px] flex justify-center px-4 pointer-events-none">
+  <!-- Floating glass input (chat only) -->
+  <div id="input-bar" class="fixed bottom-6 left-0 right-0 md:left-[300px] flex justify-center px-4 pointer-events-none" style="display:none">
     <div class="w-full max-w-[820px] glass-input rounded-[28px] p-1.5 shadow-2xl border border-white pointer-events-auto flex items-center gap-2 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
       <label class="w-10 h-10 rounded-full hover:bg-surface-container-high flex items-center justify-center transition-colors text-on-surface-variant cursor-pointer shrink-0">
         <span class="material-symbols-outlined">attach_file</span>
@@ -127,7 +158,36 @@ let busy = false;
     const j = await r.json();
     if(j.demo_loaded){ policiesLoaded = true; setStatus("Demo policies loaded"); }
   }catch{ /* backend not up yet */ }
+  await refreshPolicies();
 })();
+
+/* ── views ────────────────────────────────────────────── */
+function showHome(){ $("home").style.display="flex"; $("chat").style.display="none"; $("input-bar").style.display="none"; }
+function showChat(){ $("home").style.display="none"; $("chat").style.display="block"; $("input-bar").style.display="flex"; scrollDown(); setTimeout(()=>$("chat-input").focus(),50); }
+
+/* ── policy preview ───────────────────────────────────── */
+async function refreshPolicies(){
+  try{
+    const r = await fetch(API + "/documents");
+    if(!r.ok) return;
+    const docs = await r.json();
+    if(!Array.isArray(docs) || !docs.length) return;
+    policiesLoaded = true;
+    const ul = $("policy-list"); ul.innerHTML = "";
+    for(const d of docs){
+      const name = (d.filename||"policy").replace(/\.pdf$/i,"");
+      const li = document.createElement("li");
+      li.className = "flex items-start gap-2";
+      li.innerHTML = `<span class="material-symbols-outlined text-primary/70 text-[16px] mt-0.5">description</span><span>${esc(name)}</span>`;
+      ul.appendChild(li);
+    }
+    $("policy-count").textContent = `${docs.length} loaded ${docs.length===1?"policy":"policies"} — click to preview`;
+    $("policy-panel").style.display = "block";
+    const chatBtn = $("home-chat");
+    chatBtn.disabled = false; chatBtn.classList.remove("opacity-60");
+    chatBtn.querySelector("span:last-child span:last-child").textContent = "Ask a question now";
+  }catch{ /* ignore */ }
+}
 
 /* ── helpers ──────────────────────────────────────────── */
 function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
@@ -261,18 +321,24 @@ async function explainWithAI(node, question, btn){
 
 /* ── demo + upload ────────────────────────────────────── */
 async function loadDemo(){
-  if(busy) return; busy = true;
-  const body = assistantBubble();
-  body.innerHTML = `<span class="spin"></span> Loading sample policies… <span class="text-on-surface-variant/70">(first run downloads a small model, ~30s)</span>`;
+  if(busy) return true; busy = true;
+  const btn = $("home-demo"); const label = btn ? btn.querySelector("span:last-child span:first-child") : null;
+  const prev = label ? label.textContent : "";
+  if(label) label.textContent = "Loading… (~30s first run)";
+  toast("Loading sample policies…");
   try{
     const r = await fetch(API + "/demo/load", { method:"POST" });
     if(!r.ok) throw new Error(await r.text());
     const j = await r.json();
-    policiesLoaded = true; setStatus(`Demo policies loaded (${j.loaded||17})`);
-    body.innerHTML = `<p><strong>Loaded ${j.loaded||17} sample policies.</strong> Ask a governance question below, or try a suggestion.</p>`;
-    toast("Demo policies loaded");
+    setStatus(`Demo policies loaded (${j.loaded||17})`);
+    await refreshPolicies();
+    if(label) label.textContent = prev || "Load demo policies";
+    toast(`Loaded ${j.loaded||17} policies`);
+    return true;
   }catch(e){
-    body.innerHTML = `<p class="text-error">Demo load failed: ${esc(String(e.message||e))}. Is the backend running?</p>`;
+    if(label) label.textContent = prev || "Load demo policies";
+    toast("Demo load failed. Is the backend running?");
+    return false;
   }finally{ busy = false; }
 }
 
@@ -292,6 +358,7 @@ async function uploadFiles(fileList){
     setStatus(`${ok} file(s) indexed`);
     body.innerHTML = `<p><strong>Indexed ${ok} file(s).</strong> Ask a question about them below.</p>`;
     toast(`${ok} file(s) indexed`);
+    await refreshPolicies();
   }catch(e){
     body.innerHTML = `<p class="text-error">Upload failed: ${esc(String(e.message||e))}</p>`;
   }finally{ busy = false; }
@@ -301,13 +368,17 @@ async function uploadFiles(fileList){
 $("send-btn").onclick = () => { const q=$("chat-input").value; $("chat-input").value=""; ask(q); };
 $("chat-input").addEventListener("keydown", e => { if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); $("send-btn").click(); } });
 $("load-demo").onclick = loadDemo;
-$("empty-demo").onclick = loadDemo;
-$("new-chat").onclick = () => location.reload();
+$("new-chat").onclick = () => showHome();
 $("side-upload").onchange = e => uploadFiles(e.target.files);
 $("bar-upload").onchange  = e => uploadFiles(e.target.files);
+// home actions
+$("home-demo").onclick  = loadDemo;
+$("home-upload").onchange = e => uploadFiles(e.target.files);
+$("home-chat").onclick  = () => { if(policiesLoaded) showChat(); else toast("Load demo policies or upload files first"); };
 document.querySelectorAll(".try-chip").forEach(c => c.onclick = () => {
   if(!policiesLoaded){ loadDemo().then(()=>ask(c.textContent)); } else { ask(c.textContent); }
 });
+showHome();
 </script>
 </body>
 </html>
