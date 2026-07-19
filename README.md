@@ -1,6 +1,6 @@
 # M365Mind
 
-Local AI for Microsoft 365 governance — query your Conditional Access policies, Sensitivity Labels, and Named Locations in plain English. Everything runs on your machine.
+Local AI for Microsoft 365 governance — ask about your Conditional Access policies, Sensitivity Labels, and Named Locations and get the exact governing policies back, ranked and cited, in milliseconds. Optional one-click AI summary. Everything runs on your machine.
 
 ---
 
@@ -73,14 +73,29 @@ Click **Sign in with Microsoft** on the landing screen, then **Sync Policies** i
 
 ---
 
+## How answers work — instant by default
+
+A question runs the neural retrieval pipeline — embedding search + BM25, fused
+with Reciprocal Rank Fusion, then cross-encoder reranking — and returns the
+**exact governing policies, ranked and cited, in well under a second** (once
+models are warm). No LLM is on this path, so there's nothing to wait for and
+nothing to hallucinate: you get the authoritative policy text.
+
+For a plain-English summary, click **Explain with AI** on any answer. That runs
+the local LLM (Ollama) over the *already-retrieved* policies. It's opt-in, so
+the slow generative step never blocks the default experience.
+
+This mirrors why the retrieval is the real AI here: the embedding model and the
+cross-encoder reranker are the learned components; the LLM is an optional
+presentation layer on top.
+
 ## Performance
 
-The first query used to be slow because the embedding model, the cross-encoder
-reranker, and the Ollama LLM each load lazily on first use (tens of seconds
-cold). The app now **warms all three in a background thread at startup**, so the
-cost is paid while the page loads, not on your first click. The LLM is also kept
-resident in Ollama between requests (`keep_alive`), so an idle session doesn't
-pay a reload.
+The models (embedding, cross-encoder, and the LLM used for Explain) each load
+lazily on first use — tens of seconds cold. The app now **warms all of them in
+a background thread at startup**, so the cost is paid while the page loads, not
+on your first click. The LLM is kept resident in Ollama between requests
+(`keep_alive`) so Explain doesn't pay a reload.
 
 Everything is tunable by environment variable — trade quality for speed without
 touching code:

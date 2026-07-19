@@ -98,7 +98,7 @@ def run_case_full(case: dict, backend_url: str) -> dict:
     try:
         resp = httpx.post(
             f"{backend_url}/query",
-            json={"question": case["question"], "top_k": 5},
+            json={"question": case["question"], "top_k": 5, "synthesize": True},
             timeout=120,
         )
         resp.raise_for_status()

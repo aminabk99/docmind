@@ -302,11 +302,12 @@ def sync_tenant(sid: str) -> dict | None:
         return None
 
 
-def do_query(question: str) -> dict | None:
+def do_query(question: str, synthesize: bool = False) -> dict | None:
+    """synthesize=False → instant retrieval (no LLM). True → LLM summary."""
     try:
         r = httpx.post(
             f"{BACKEND_URL}/query",
-            json={"question": question, "top_k": 5},
+            json={"question": question, "top_k": 5, "synthesize": synthesize},
             timeout=180,
         )
         r.raise_for_status()
@@ -628,9 +629,20 @@ if not st.session_state.messages:
   <div class="empty-state-sub">Type a question below, or pick a template from the sidebar.</div>
 </div>""", unsafe_allow_html=True)
 else:
-    for item in st.session_state.messages:
+    for _idx, item in enumerate(st.session_state.messages):
         _user_bubble(item["question"])
         _bot_bubble(item["answer"], item.get("sources", []), item["confidence"])
+        # Instant retrieval answers can be expanded into an LLM summary on demand.
+        if item.get("mode") == "retrieval":
+            _bcol, _ = st.columns([1, 3])
+            with _bcol:
+                if st.button("✨ Explain with AI", key=f"explain_{_idx}",
+                             help="Generate a plain-English summary from the retrieved policies"):
+                    with st.spinner("Summarising with the local model…"):
+                        expl = do_query(item["question"], synthesize=True)
+                    if expl:
+                        st.session_state.messages[_idx] = {"question": item["question"], **expl}
+                        st.rerun()
 
 # ─── Input row — clear button left, chat input right ─────────────────────────
 
@@ -655,8 +667,8 @@ else:
         # Render user bubble immediately
         _user_bubble(question)
 
-        with st.spinner("Analysing policies…"):
-            result = do_query(question)
+        with st.spinner("Searching policies…"):
+            result = do_query(question)   # instant retrieval; no LLM
 
         if result:
             _bot_bubble(result["answer"], result.get("sources", []), result["confidence"])

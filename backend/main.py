@@ -60,6 +60,7 @@ class QueryRequest(BaseModel):
     question: str
     top_k: int = 5
     doc_ids: list[str] | None = None
+    synthesize: bool = False   # False = instant retrieval; True = LLM summary
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +92,7 @@ async def query_documents(request: QueryRequest):
     if not (1 <= request.top_k <= 20):
         raise HTTPException(status_code=400, detail="top_k must be between 1 and 20.")
     try:
-        return answer_question(request.question, request.top_k, request.doc_ids)
+        return answer_question(request.question, request.top_k, request.doc_ids, request.synthesize)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Query failed: {exc}") from exc
 

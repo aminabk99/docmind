@@ -127,6 +127,7 @@ def answer_question(
     question: str,
     top_k: int = 5,
     doc_ids: list[str] | None = None,
+    synthesize: bool = False,
 ) -> dict:
     """
     Full hybrid retrieval pipeline.
@@ -258,42 +259,18 @@ def answer_question(
         reranked = rerank(question, candidates, top_k=actual_k)
 
     # ------------------------------------------------------------------
-    # Step 5 — Build prompt and call LLM
-    # ------------------------------------------------------------------
-    context_parts = []
-    for i, chunk in enumerate(reranked):
-        meta = chunk["metadata"]
-        context_parts.append(
-            f"[Source {i + 1}: {meta.get('filename', 'unknown')}, "
-            f"page {meta.get('page_number', '?')}]\n{chunk['text']}"
-        )
-    context_str  = "\n\n---\n\n".join(context_parts)
-    user_message = f"Context:\n{context_str}\n\nQuestion: {question}"
-
-    with tracer.span("llm"):
-        raw_answer = generate(SYSTEM_PROMPT, user_message)
-
-    # ------------------------------------------------------------------
-    # Step 6 — Citation enforcement
-    # ------------------------------------------------------------------
+    # Sources are built the same way in both modes.
     sources = [
         {
-            "filename":    chunk["metadata"].get("filename", "unknown"),
-            "page_number": chunk["metadata"].get("page_number", 0),
-            "chunk_text":  chunk["text"],
+            "filename":     chunk["metadata"].get("filename", "unknown"),
+            "page_number":  chunk["metadata"].get("page_number", 0),
+            "chunk_text":   chunk["text"],
             "rerank_score": chunk.get("rerank_score", 0.0),
         }
         for chunk in reranked
     ]
 
-    with tracer.span("citation_check"):
-        verified_answer = _verify_citations(raw_answer, sources)
-
-    # ------------------------------------------------------------------
-    # Confidence: normalise mean rerank score to [0, 1] via sigmoid-like
-    # The cross-encoder outputs logits (typically -10 to +10).
-    # We use a simple clipped linear normalisation: (score + 10) / 20
-    # ------------------------------------------------------------------
+    # Confidence from the cross-encoder is mode-independent.
     rerank_scores = [c.get("rerank_score", 0.0) for c in reranked]
     if rerank_scores:
         mean_logit = sum(rerank_scores) / len(rerank_scores)
@@ -302,16 +279,44 @@ def answer_question(
         confidence = 0.0
 
     # ------------------------------------------------------------------
-    # Emit trace
+    # Two answer modes:
+    #   retrieval (default)  — return the ranked, cited policies directly.
+    #     No LLM call, so it's sub-second once the models are warm. For a
+    #     governance tool this is often preferable: the authoritative policy
+    #     text with citations, no risk of a hallucinated summary.
+    #   synthesize (opt-in)  — run the local LLM over the retrieved policies to
+    #     produce a plain-English answer, with citation enforcement.
     # ------------------------------------------------------------------
-    tokens_generated = len(raw_answer.split())   # rough proxy
+    if synthesize:
+        context_parts = []
+        for i, chunk in enumerate(reranked):
+            meta = chunk["metadata"]
+            context_parts.append(
+                f"[Source {i + 1}: {meta.get('filename', 'unknown')}, "
+                f"page {meta.get('page_number', '?')}]\n{chunk['text']}"
+            )
+        context_str  = "\n\n---\n\n".join(context_parts)
+        user_message = f"Context:\n{context_str}\n\nQuestion: {question}"
+
+        with tracer.span("llm"):
+            raw_answer = generate(SYSTEM_PROMPT, user_message)
+        with tracer.span("citation_check"):
+            answer = _verify_citations(raw_answer, sources)
+        mode = "llm"
+        tokens_generated = len(raw_answer.split())
+    else:
+        answer = _extractive_answer(reranked)
+        mode = "retrieval"
+        tokens_generated = 0
+
     write_trace(tracer.finish(), endpoint="/query", status="ok",
                 tokens_generated=tokens_generated, confidence=confidence)
 
     return {
-        "answer": verified_answer,
+        "answer": answer,
         "sources": sources,
         "confidence": confidence,
+        "mode": mode,
         "retrieval_stats": {
             "vector_hits":  len(vector_hits),
             "bm25_hits":    len(bm25_hits),
@@ -319,6 +324,29 @@ def answer_question(
             "after_rerank": len(reranked),
         },
     }
+
+
+def _extractive_answer(reranked: list[dict]) -> str:
+    """
+    Build an instant answer from the retrieved policies — no LLM. Lists the top
+    matching policies with a short snippet each, deduplicated by name.
+    """
+    if not reranked:
+        return "No matching policies found."
+    lines = ["**Top matching policies:**"]
+    seen: set[str] = set()
+    for chunk in reranked:
+        name = chunk["metadata"].get("filename", "unknown")
+        if name in seen:
+            continue
+        seen.add(name)
+        snippet = " ".join(chunk["text"].split())[:220]
+        page = chunk["metadata"].get("page_number", 1)
+        lines.append(f"- **{name}** [{name}, page {page}] — {snippet}\u2026")
+        if len(seen) >= 5:
+            break
+    lines.append("\n_Click **Explain with AI** for a plain-English summary._")
+    return "\n".join(lines)
 
 
 def _empty(msg: str) -> dict:
