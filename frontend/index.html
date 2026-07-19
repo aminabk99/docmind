@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>M365Mind — Technical Intelligence</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<script>
+  tailwind.config = { darkMode:"class", theme:{ extend:{ colors:{
+    "primary":"#004ac6","on-primary":"#ffffff","primary-container":"#2563eb","on-primary-container":"#eeefff",
+    "primary-fixed":"#dbe1ff","primary-fixed-dim":"#b4c5ff","on-primary-fixed":"#00174b",
+    "secondary":"#006b5f","secondary-container":"#6df5e1","on-secondary-container":"#006f64","secondary-fixed-dim":"#4fdbc8",
+    "tertiary":"#4d556b","error":"#ba1a1a","error-container":"#ffdad6","on-error-container":"#93000a",
+    "background":"#f7f9fb","surface":"#f7f9fb","surface-bright":"#f7f9fb","surface-dim":"#d8dadc",
+    "surface-container-lowest":"#ffffff","surface-container-low":"#f2f4f6","surface-container":"#eceef0",
+    "surface-container-high":"#e6e8ea","surface-container-highest":"#e0e3e5",
+    "on-surface":"#191c1e","on-surface-variant":"#434655","inverse-surface":"#2d3133","inverse-on-surface":"#eff1f3",
+    "outline":"#737686","outline-variant":"#c3c6d7","ok":"#1f7a43","ok-bg":"#d9f2e3","warn":"#8a5a00","warn-bg":"#fdeecd",
+  }, borderRadius:{ DEFAULT:"0.25rem", lg:"0.5rem", xl:"0.75rem", full:"9999px" },
+     fontFamily:{ sans:["Inter","sans-serif"] } } } };
+</script>
+<style>
+  body { font-family:"Inter",sans-serif; }
+  .material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24; }
+  .fill { font-variation-settings:'FILL' 1; }
+  .bubble-shadow { box-shadow:0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.04); }
+  .glass-input { background:rgba(255,255,255,.82); backdrop-filter:blur(16px); }
+  .rise { animation:rise .35s ease; }
+  @keyframes rise { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+  .spin { display:inline-block;width:15px;height:15px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .6s linear infinite;vertical-align:-2px; }
+  @keyframes sp { to{transform:rotate(360deg)} }
+  .chat-scroll::-webkit-scrollbar{width:8px} .chat-scroll::-webkit-scrollbar-thumb{background:#c3c6d7;border-radius:9999px}
+</style>
+</head>
+<body class="bg-surface text-on-surface overflow-hidden">
+
+<!-- Sidebar -->
+<aside class="hidden md:flex flex-col h-screen p-4 bg-inverse-surface w-[300px] left-0 fixed z-50 shadow-xl">
+  <div class="flex items-center gap-3 mb-8">
+    <div class="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+      <span class="material-symbols-outlined text-white fill">psychology</span>
+    </div>
+    <div>
+      <h1 class="text-xl font-semibold text-surface-bright leading-tight">M365Mind</h1>
+      <p class="text-[11px] font-semibold tracking-wider text-outline-variant uppercase">Technical Intelligence</p>
+    </div>
+  </div>
+
+  <nav class="flex-grow space-y-1.5">
+    <button id="new-chat" class="w-full flex items-center gap-3 px-4 py-2.5 bg-white/10 text-white rounded-xl hover:bg-white/15 transition-all">
+      <span class="material-symbols-outlined">add_comment</span><span>New chat</span></button>
+    <button id="load-demo" class="w-full flex items-center gap-3 px-4 py-2.5 text-outline-variant hover:bg-white/5 rounded-xl transition-all">
+      <span class="material-symbols-outlined">bolt</span><span>Load demo policies</span></button>
+    <label class="w-full flex items-center gap-3 px-4 py-2.5 text-outline-variant hover:bg-white/5 rounded-xl transition-all cursor-pointer">
+      <span class="material-symbols-outlined">upload_file</span><span>Upload your files</span>
+      <input id="side-upload" type="file" accept="application/pdf" multiple class="hidden" /></label>
+    <a href="/metrics" target="_blank" rel="noopener" class="w-full flex items-center gap-3 px-4 py-2.5 text-outline-variant hover:bg-white/5 rounded-xl transition-all">
+      <span class="material-symbols-outlined">monitoring</span><span>Metrics</span></a>
+    <a href="/docs" target="_blank" rel="noopener" class="w-full flex items-center gap-3 px-4 py-2.5 text-outline-variant hover:bg-white/5 rounded-xl transition-all">
+      <span class="material-symbols-outlined">api</span><span>API docs</span></a>
+  </nav>
+
+  <div class="mt-auto space-y-1 pt-4 border-t border-white/10">
+    <div id="status-line" class="px-4 py-2 text-[12px] text-outline-variant">No policies loaded</div>
+    <a href="https://github.com/aminabk99/M365Mind" target="_blank" rel="noopener" class="w-full flex items-center gap-3 px-4 py-2.5 text-outline-variant hover:bg-white/5 rounded-xl transition-all">
+      <span class="material-symbols-outlined">code</span><span>GitHub</span></a>
+  </div>
+</aside>
+
+<!-- Workspace -->
+<main class="md:ml-[300px] h-screen relative flex flex-col items-center bg-surface">
+  <header class="w-full max-w-[820px] px-5 py-4 flex items-center justify-between sticky top-0 z-10 md:hidden bg-surface/80 backdrop-blur-md">
+    <h2 class="text-xl font-semibold text-primary">M365Mind</h2>
+  </header>
+
+  <!-- Chat canvas -->
+  <div id="chat" class="chat-scroll flex-grow w-full max-w-[820px] px-4 md:px-6 overflow-y-auto pt-8 pb-40 space-y-6">
+    <!-- Empty state -->
+    <div id="empty" class="h-full flex flex-col items-center justify-center text-center px-6">
+      <div class="w-16 h-16 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center mb-4">
+        <span class="material-symbols-outlined text-[36px] fill">psychology</span>
+      </div>
+      <h3 class="text-2xl font-bold tracking-tight mb-1">Ask about your M365 governance</h3>
+      <p class="text-on-surface-variant max-w-md mb-2">Conditional Access, Sensitivity Labels, Named Locations — answered instantly from the exact policies, with citations.</p>
+      <p class="text-[12px] text-on-surface-variant/70 mb-5">⏳ First load downloads a small model (~30s). Instant after that.</p>
+      <div class="flex flex-wrap gap-2 justify-center">
+        <button class="try-chip bg-surface-container border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary text-sm px-3 py-1.5 rounded-full transition-colors">Which policies require MFA?</button>
+        <button class="try-chip bg-surface-container border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary text-sm px-3 py-1.5 rounded-full transition-colors">Is legacy authentication blocked?</button>
+        <button class="try-chip bg-surface-container border border-outline-variant/40 text-on-surface-variant hover:border-primary hover:text-primary text-sm px-3 py-1.5 rounded-full transition-colors">What sensitivity labels exist?</button>
+      </div>
+      <button id="empty-demo" class="mt-6 bg-primary text-white font-semibold px-6 py-2.5 rounded-lg hover:brightness-110 transition-all shadow-lg shadow-primary/30">⚡ Load demo policies</button>
+    </div>
+  </div>
+
+  <!-- Floating glass input -->
+  <div class="fixed bottom-6 left-0 right-0 md:left-[300px] flex justify-center px-4 pointer-events-none">
+    <div class="w-full max-w-[820px] glass-input rounded-[28px] p-1.5 shadow-2xl border border-white pointer-events-auto flex items-center gap-2 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+      <label class="w-10 h-10 rounded-full hover:bg-surface-container-high flex items-center justify-center transition-colors text-on-surface-variant cursor-pointer shrink-0">
+        <span class="material-symbols-outlined">attach_file</span>
+        <input id="bar-upload" type="file" accept="application/pdf" multiple class="hidden" /></label>
+      <input id="chat-input" type="text" placeholder="Ask about compliance, security or data…"
+        class="flex-grow bg-transparent border-none focus:ring-0 text-on-surface px-2 py-3" />
+      <button id="send-btn" class="bg-primary text-white w-11 h-11 rounded-full flex items-center justify-center hover:scale-105 active:scale-95 transition-transform shadow-lg shadow-primary/30 shrink-0">
+        <span class="material-symbols-outlined fill">send</span></button>
+    </div>
+  </div>
+</main>
+
+<!-- Toast -->
+<div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 bg-inverse-surface text-surface px-5 py-2.5 rounded-full shadow-xl opacity-0 -translate-y-3 transition-all duration-300 pointer-events-none z-[100] flex items-center gap-2">
+  <span class="material-symbols-outlined text-secondary-container">check_circle</span>
+  <span id="toast-msg">Done</span>
+</div>
+
+<script>
+const API = location.origin.includes("8501") ? "http://localhost:8000" : location.origin;
+const $ = id => document.getElementById(id);
+let policiesLoaded = false;
+let busy = false;
+
+/* ── boot ─────────────────────────────────────────────── */
+(async function boot(){
+  try{
+    const r = await fetch(API + "/demo/status");
+    const j = await r.json();
+    if(j.demo_loaded){ policiesLoaded = true; setStatus("Demo policies loaded"); }
+  }catch{ /* backend not up yet */ }
+})();
+
+/* ── helpers ──────────────────────────────────────────── */
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function setStatus(t){ $("status-line").textContent = t; }
+function toast(msg){ const t=$("toast"); $("toast-msg").textContent=msg; t.classList.remove("opacity-0","-translate-y-3");
+  setTimeout(()=>t.classList.add("opacity-0","-translate-y-3"), 2600); }
+function clearEmpty(){ const e=$("empty"); if(e) e.remove(); }
+function scrollDown(){ const c=$("chat"); c.scrollTop = c.scrollHeight; }
+
+function userBubble(text){
+  clearEmpty();
+  const el = document.createElement("div");
+  el.className = "flex justify-end w-full";
+  el.innerHTML =
+    `<div class="max-w-[80%] flex flex-col items-end rise">
+       <div class="px-5 py-3 rounded-[22px] rounded-tr-md bubble-shadow bg-secondary-container text-on-secondary-container">
+         <p>${esc(text)}</p></div>
+       <span class="text-[11px] text-on-surface-variant/60 mt-1 mr-2">You</span>
+     </div>`;
+  $("chat").appendChild(el); scrollDown();
+}
+
+/* Returns the assistant bubble's inner content node so it can be updated. */
+function assistantBubble(){
+  clearEmpty();
+  const wrap = document.createElement("div");
+  wrap.className = "flex justify-start w-full";
+  wrap.innerHTML =
+    `<div class="flex items-end gap-2 max-w-[88%] rise">
+       <div class="w-8 h-8 rounded-full bg-white flex items-center justify-center shadow-sm mb-1 shrink-0">
+         <span class="material-symbols-outlined text-primary text-[18px] fill">auto_awesome</span></div>
+       <div class="flex flex-col items-start w-full">
+         <div class="bubble-body bg-white px-5 py-3 rounded-[22px] rounded-tl-md text-on-surface bubble-shadow border border-outline-variant/20 w-full"></div>
+         <span class="text-[11px] text-on-surface-variant/60 mt-1 ml-2">M365Mind</span>
+       </div>
+     </div>`;
+  $("chat").appendChild(wrap); scrollDown();
+  return wrap.querySelector(".bubble-body");
+}
+
+function typing(node){ node.innerHTML =
+  `<div class="flex gap-1 py-1"><span class="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce"></span>
+   <span class="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-.15s]"></span>
+   <span class="w-1.5 h-1.5 bg-primary/40 rounded-full animate-bounce [animation-delay:-.3s]"></span></div>`; }
+
+function mdToHtml(t){
+  // minimal: **bold**, - bullets, [cite] pills handled separately
+  let h = esc(t)
+    .replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>")
+    .replace(/^_(.+)_$/gm,"<em>$1</em>");
+  const lines = h.split("\n").map(l=>{
+    if(/^\s*[-•]\s+/.test(l)) return "<li>"+l.replace(/^\s*[-•]\s+/,"")+"</li>";
+    return l ? "<p>"+l+"</p>" : "";
+  });
+  let out=""; let inList=false;
+  for(const l of lines){
+    if(l.startsWith("<li>")){ if(!inList){out+="<ul class='list-disc pl-5 space-y-1'>";inList=true;} out+=l; }
+    else { if(inList){out+="</ul>";inList=false;} out+=l; }
+  }
+  if(inList) out+="</ul>";
+  return out;
+}
+
+function confBadge(score){
+  const pct = Math.round((score??0)*100);
+  const cls = pct>=75 ? "bg-ok-bg text-ok" : pct>=50 ? "bg-warn-bg text-warn" : "bg-surface-container-high text-on-surface-variant";
+  return `<span class="${cls} px-2.5 py-1 rounded-full text-[11px] font-semibold">Confidence ${pct}%</span>`;
+}
+function sourcePills(sources){
+  const seen = new Set(); const pills = [];
+  for(const s of (sources||[])){
+    const n = s.filename || "source"; if(seen.has(n)) continue; seen.add(n);
+    pills.push(`<span class="bg-surface-container-high text-on-surface-variant px-2.5 py-1 rounded-full text-[11px] font-semibold border border-outline-variant/20">${esc(n)}</span>`);
+    if(seen.size>=5) break;
+  }
+  return pills.join("");
+}
+
+function renderAnswer(node, data, question){
+  const answerHtml = mdToHtml(data.answer || "");
+  let meta = `<div class="mt-3 flex flex-wrap gap-1.5 items-center">${confBadge(data.confidence)}${sourcePills(data.sources)}</div>`;
+  let explain = "";
+  if(data.mode === "retrieval"){
+    explain = `<button class="explain-btn mt-3 inline-flex items-center gap-1.5 text-secondary font-semibold text-sm hover:underline">
+                 <span class="material-symbols-outlined text-[18px] fill">auto_awesome</span> Explain with AI</button>`;
+  }
+  node.innerHTML = `<div class="leading-relaxed space-y-1">${answerHtml}</div>${meta}${explain}`;
+  const btn = node.querySelector(".explain-btn");
+  if(btn) btn.onclick = () => explainWithAI(node, question, btn);
+  scrollDown();
+}
+
+/* ── query flow ───────────────────────────────────────── */
+async function ask(question){
+  if(busy) return;
+  if(!question.trim()) return;
+  if(!policiesLoaded){ toast("Load demo policies or upload files first"); return; }
+  busy = true;
+  userBubble(question);
+  const body = assistantBubble();
+  typing(body);
+  try{
+    const r = await fetch(API + "/query", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ question, top_k:5, synthesize:false }),
+    });
+    if(!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    renderAnswer(body, data, question);
+  }catch(e){
+    body.innerHTML = `<p class="text-error">Couldn't answer: ${esc(String(e.message||e))}</p>`;
+  }finally{ busy = false; }
+}
+
+async function explainWithAI(node, question, btn){
+  btn.disabled = true; btn.innerHTML = `<span class="spin"></span> Summarising…`;
+  try{
+    const r = await fetch(API + "/query", {
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ question, top_k:5, synthesize:true }),
+    });
+    if(!r.ok) throw new Error(await r.text());
+    const data = await r.json();
+    // keep the same bubble; show the LLM summary, drop the explain button
+    renderAnswer(node, {...data, mode:"llm"}, question);
+  }catch(e){
+    btn.disabled = false; btn.textContent = "Explain with AI";
+    toast("Summary failed: " + (e.message||e));
+  }
+}
+
+/* ── demo + upload ────────────────────────────────────── */
+async function loadDemo(){
+  if(busy) return; busy = true;
+  const body = assistantBubble();
+  body.innerHTML = `<span class="spin"></span> Loading sample policies… <span class="text-on-surface-variant/70">(first run downloads a small model, ~30s)</span>`;
+  try{
+    const r = await fetch(API + "/demo/load", { method:"POST" });
+    if(!r.ok) throw new Error(await r.text());
+    const j = await r.json();
+    policiesLoaded = true; setStatus(`Demo policies loaded (${j.loaded||17})`);
+    body.innerHTML = `<p><strong>Loaded ${j.loaded||17} sample policies.</strong> Ask a governance question below, or try a suggestion.</p>`;
+    toast("Demo policies loaded");
+  }catch(e){
+    body.innerHTML = `<p class="text-error">Demo load failed: ${esc(String(e.message||e))}. Is the backend running?</p>`;
+  }finally{ busy = false; }
+}
+
+async function uploadFiles(fileList){
+  if(!fileList || !fileList.length || busy) return; busy = true;
+  const names = [...fileList].map(f=>f.name).join(", ");
+  const body = assistantBubble();
+  body.innerHTML = `<span class="spin"></span> Indexing ${esc(names)}…`;
+  let ok = 0;
+  try{
+    for(const f of fileList){
+      const fd = new FormData(); fd.append("file", f, f.name);
+      const r = await fetch(API + "/upload", { method:"POST", body: fd });
+      if(r.ok) ok++;
+    }
+    policiesLoaded = policiesLoaded || ok>0;
+    setStatus(`${ok} file(s) indexed`);
+    body.innerHTML = `<p><strong>Indexed ${ok} file(s).</strong> Ask a question about them below.</p>`;
+    toast(`${ok} file(s) indexed`);
+  }catch(e){
+    body.innerHTML = `<p class="text-error">Upload failed: ${esc(String(e.message||e))}</p>`;
+  }finally{ busy = false; }
+}
+
+/* ── wire controls ────────────────────────────────────── */
+$("send-btn").onclick = () => { const q=$("chat-input").value; $("chat-input").value=""; ask(q); };
+$("chat-input").addEventListener("keydown", e => { if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); $("send-btn").click(); } });
+$("load-demo").onclick = loadDemo;
+$("empty-demo").onclick = loadDemo;
+$("new-chat").onclick = () => location.reload();
+$("side-upload").onchange = e => uploadFiles(e.target.files);
+$("bar-upload").onchange  = e => uploadFiles(e.target.files);
+document.querySelectorAll(".try-chip").forEach(c => c.onclick = () => {
+  if(!policiesLoaded){ loadDemo().then(()=>ask(c.textContent)); } else { ask(c.textContent); }
+});
+</script>
+</body>
+</html>

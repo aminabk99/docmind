@@ -37,20 +37,21 @@ cp .env.example .env
 
 ## Run it
 
-Open **three terminals** from the `M365Mind` folder:
+The UI is a single static page (`frontend/index.html`) served by the backend —
+no separate frontend server. Open **two terminals** from the `M365Mind` folder:
 
 ```bash
 # Terminal 1 — start Ollama (skip if already running as a service)
 ollama serve
 
-# Terminal 2 — backend
+# Terminal 2 — backend (serves the API and the chat UI)
 uvicorn backend.main:app --reload
-
-# Terminal 3 — frontend
-streamlit run frontend/app.py
 ```
 
-Open [http://localhost:8501](http://localhost:8501) and click **Launch Demo** — no Microsoft account needed.
+Open [http://localhost:8000/app](http://localhost:8000/app) and click **Load demo
+policies** — no Microsoft account needed. Ask a governance question and you get the
+matching policies instantly, with citations; click **Explain with AI** for a
+plain-English summary.
 
 ---
 

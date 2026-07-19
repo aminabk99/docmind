@@ -1,6 +1,6 @@
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse, HTMLResponse
 from pydantic import BaseModel
 from pathlib import Path
 
@@ -54,6 +54,20 @@ async def _warmup_models() -> None:
         print(f"[warmup] models warm in {time.perf_counter() - t0:.1f}s — first request will be fast.")
 
     threading.Thread(target=_warm, name="model-warmup", daemon=True).start()
+
+
+# ---------------------------------------------------------------------------
+# Frontend — the chat UI (replaces the Streamlit app)
+# ---------------------------------------------------------------------------
+_FRONTEND = Path(__file__).parent.parent / "frontend" / "index.html"
+
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/app", response_class=HTMLResponse)
+async def serve_frontend():
+    if not _FRONTEND.exists():
+        raise HTTPException(status_code=404, detail="frontend/index.html not found")
+    return FileResponse(_FRONTEND, media_type="text/html")
 
 
 class QueryRequest(BaseModel):
